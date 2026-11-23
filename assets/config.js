@@ -1,13 +1,14 @@
+// Configuración del calendario de adviento de Feminario (30 nov al 4 dic de 2026). Solo cosas públicas: aquí NUNCA van datos de las mujeres.
 window.CAL_CFG = {
-  // URL de la aplicación web de Apps Script (ver README). Vacía = funciona, pero no guarda en la hoja.
-  API_URL: "",
-  // Primer día del calendario (año, mes 1-12, día)
-  INICIO: [2026, 12, 1],
-  // Botón final: compra del Club 365
+  // Primer día (año, mes 1-12, día). Cada puerta se abre en su fecha y queda abierta: se hace a su ritmo.
+  INICIO: [2026, 11, 30],
+  // Enlace del grupo de WhatsApp de la dinámica (lo envía Caro). Vacío = el botón muestra «próximamente».
+  GRUPO_WA: "",
+  // Sesión en conjunto con Andre y Tina (día 4). Se llena cuando esté confirmada.
+  SESION: { cuando: "Jueves 3 de diciembre, de 2:00 a 3:00 p. m. (hora de Colombia)", enlace: "" },
   CLUB_URL: "https://www.feminario.co/store",
-  // Enlaces de los otros artefactos
-  MAPA_URL: "https://feminario.github.io/Tu-mapa-de-dinero/",
-  CALC110_URL: "https://feminario.github.io/calculadora-feminario/",
+  CALC_URL: "https://feminario.github.io/calculadora-feminario/",
+  PORTAFOLIO_URL: "https://feminario.github.io/construye-tu-portafolio/",
   INSTAGRAM: "https://www.instagram.com/feminario.co/",
-  // Para probar sin esperar las fechas: abre cualquier página con ?preview=1
+  // Para probar sin esperar las fechas: agrega ?preview=1 al enlace.
 };
