@@ -2,7 +2,7 @@
 (function () {
   var CFG = window.CAL_CFG || {};
   var KEY = "feminario_adviento_2026_v1";
-  var PREVIEW = /[?&]preview=1/.test(location.search);
+  var PREVIEW = /[?&]preview=1/.test(location.search) || !!CFG.PREVIEW;
   var S = cargar();
 
   /* ───────── estado ───────── */
@@ -42,7 +42,7 @@
   function pedirIdentidad(destino, despues) {
     if (S.nombre) { despues(); return; }
     destino.innerHTML =
-      '<div class="card"><h2>Antes de empezar</h2><p>Todo lo que escribas se guarda <strong>solo en este dispositivo</strong>: Feminario no puede verlo. No necesitamos tu correo.</p>' +
+      '<div class="card"><h2>Antes de empezar</h2><p>Lo que escribas se queda <strong>solo en este dispositivo</strong>.</p>' +
       '<label for="id-nombre">¿Cómo te llamas?</label><input type="text" id="id-nombre" autocomplete="given-name" value="' + esc(S.nombre) + '">' +
       '<div class="error" id="id-err"></div><button class="btn" id="id-go">Empezar mi calendario</button></div>';
     destino.querySelector("#id-go").onclick = function () {
@@ -103,7 +103,7 @@
       } return h;
     }
     if (b.t === "link") return '<div class="enlace"><a class="btn" target="_blank" rel="noopener" href="' + esc(urlDe(b.url)) + '">' + b.texto + "</a>" + (b.nota ? '<p class="suave">' + b.nota + "</p>" : "") + "</div>";
-    if (b.t === "wa") return '<div class="wa"><b>💬 Dinámica en el grupo de WhatsApp</b><span class="suave">Cuéntale al grupo cómo te fue (sin cifras si prefieres). Puedes usar este mensaje:</span><textarea readonly class="wa-txt">' + esc(b.texto) + '</textarea><div class="wa-btns"><button type="button" class="btn secundario chico" data-wa-copiar>Copiar mensaje</button>' + (CFG.GRUPO_WA ? '<a class="btn chico" target="_blank" rel="noopener" href="' + esc(CFG.GRUPO_WA) + '">Abrir el grupo</a>' : '<span class="suave">El enlace del grupo llega muy pronto.</span>') + "</div></div>";
+    if (b.t === "wa") return '<div class="wa"><b>💬 Dinámica en el grupo de WhatsApp</b><textarea readonly class="wa-txt">' + esc(b.texto) + '</textarea><div class="wa-btns"><button type="button" class="btn secundario chico" data-wa-copiar>Copiar mensaje</button>' + (CFG.GRUPO_WA ? '<a class="btn chico" target="_blank" rel="noopener" href="' + esc(CFG.GRUPO_WA) + '">Abrir el grupo</a>' : '<span class="suave">Grupo: muy pronto.</span>') + "</div></div>";
     if (b.t === "custom") return '<div data-custom="' + b.k + '"></div>';
     return "";
   }
@@ -139,7 +139,7 @@
   function reelHTML(d) {
     var m = String(d.reel || "").match(/instagram\.com\/(?:reel|p|tv)\/([\w-]+)/);
     if (m) return '<div class="reel"><iframe src="https://www.instagram.com/reel/' + m[1] + '/embed" loading="lazy" allowtransparency="true" allowfullscreen scrolling="no"></iframe><a class="suave" target="_blank" rel="noopener" href="https://www.instagram.com/reel/' + m[1] + '/">Verlo en Instagram</a></div>';
-    return '<div class="reel vacio"><div class="reel-ico">▶</div><p><strong>El video del día</strong><br><span class="suave">Pronto lo vas a ver aquí. Mientras tanto, pasa por nuestro Instagram.</span></p><a class="btn secundario chico" target="_blank" rel="noopener" href="' + esc(CFG.INSTAGRAM) + '">@feminario.co</a></div>';
+    return '<div class="reel vacio"><div class="reel-ico">▶</div><p><strong>Video del día</strong><br><span class="suave">Muy pronto.</span></p><a class="btn secundario chico" target="_blank" rel="noopener" href="' + esc(CFG.INSTAGRAM) + '">@feminario.co</a></div>';
   }
   function urlCalendario() { var u = location.href.replace(/dia\.html.*$/, "").replace(/\?.*$/, ""); return u.slice(-1) === "/" ? u : u; }
   function tarjeta(texto) {
@@ -156,10 +156,10 @@
   var CUSTOM = {
     sesion: function (el) {
       var se = CFG.SESION || {};
-      el.innerHTML = '<div class="card sub"><h3>Sesión con Andre y Tina</h3><p><strong>' + esc(se.cuando || "Fecha por confirmar") + "</strong></p>" + (se.enlace ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(se.enlace) + '">Entrar a la sesión</a>' : '<p class="suave">El enlace lo compartimos en el grupo de WhatsApp.</p>') + "</div>";
+      el.innerHTML = '<div class="card sub"><h3>Sesión con Andre y Tina</h3><p><strong>' + esc(se.cuando || "Fecha por confirmar") + "</strong></p>" + (se.enlace ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(se.enlace) + '">Entrar a la sesión</a>' : '<p class="suave">El enlace va en el grupo de WhatsApp.</p>') + "</div>";
     },
     enviar_carta: function (el) {
-      el.innerHTML = '<button class="btn secundario" type="button" id="carta-wa">Enviársela por WhatsApp</button><p class="suave">Se abre WhatsApp con tu carta lista para que elijas a quién mandársela.</p>';
+      el.innerHTML = '<button class="btn secundario" type="button" id="carta-wa">Enviársela por WhatsApp</button>';
       el.querySelector("#carta-wa").onclick = function () { window.open("https://wa.me/?text=" + encodeURIComponent(getV("d5_carta") || ""), "_blank"); };
     },
     plan: function (el) {
@@ -194,7 +194,7 @@
     pedirIdentidad(raiz, function () {
       var acto = window.ACTOS[d.acto - 1];
       var h = '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Calendario</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + hechos() + "/" + window.DIAS.length + "</span></div>" +
-        '<div class="dia-head" style="--c:' + acto.color + '"><div class="pill">Acto ' + acto.id + " · " + acto.nombre + '</div><div class="dia-n">Día ' + n + " · " + fechaTxt(n) + '</div><h1>' + d.emoji + " " + esc(d.titulo) + "</h1><p>" + esc(d.gancho) + "</p></div>" +
+        '<div class="dia-head" style="--c:' + acto.color + '"><div class="pill">Acto ' + acto.id + " · " + acto.nombre + '</div><div class="dia-n">Día ' + n + " · " + fechaTxt(n) +  '</div><img class="dia-img" src="assets/' + d.img + '" alt=""><h1>' + esc(d.titulo) + "</h1><p>" + esc(d.gancho) + "</p></div>" +
         reelHTML(d) + '<div class="card" id="cuerpo">' + d.bloques.map(render).join("") + "</div>" +
         '<button class="btn" id="fin" type="button">' + (S.listo[n] ? "✓ Día completado · actualizar" : "Completar el día " + n) + '</button><div class="celebra" id="celebra"></div>' +
         '<div class="nav-dias">' + (n > 1 ? '<a href="dia.html?d=' + (n - 1) + (PREVIEW ? "&preview=1" : "") + '">← Día ' + (n - 1) + "</a>" : "<span></span>") + (n < window.DIAS.length ? '<a href="dia.html?d=' + (n + 1) + (PREVIEW ? "&preview=1" : "") + '">Día ' + (n + 1) + " →</a>" : "<span></span>") + "</div>";
@@ -216,7 +216,7 @@
   function pagPortada() {
     var raiz = document.getElementById("app");
     pedirIdentidad(raiz.querySelector("#identidad"), function () {
-      raiz.querySelector("#identidad").innerHTML = '<div class="card hola"><h2>Hola, ' + esc(S.nombre) + " 💜</h2><p>Llevas <strong>" + hechos() + " de " + window.DIAS.length + "</strong> días. Cada puerta se abre en su fecha y se queda abierta: hazlas a tu ritmo.</p><div class=\"barra\"><div style=\"width:" + Math.round(hechos() / window.DIAS.length * 100) + '%"></div></div>' + (hechos() ? '<a class="btn secundario" href="resumen.html' + pre() + '">Descargar mi PDF con todo</a>' : "") + "</div>";
+      raiz.querySelector("#identidad").innerHTML = '<div class="card hola"><h2>Hola, ' + esc(S.nombre) + " 💜</h2><p>Llevas <strong>" + hechos() + " de " + window.DIAS.length + "</strong> días.</p><div class=\"barra\"><div style=\"width:" + Math.round(hechos() / window.DIAS.length * 100) + '%"></div></div>' + (hechos() ? '<a class="btn secundario" href="resumen.html' + pre() + '">Descargar mi PDF con todo</a>' : "") + "</div>";
     });
     var cont = raiz.querySelector("#puertas");
     var PASO = 118, BANNER = 92, TOP = 20;
@@ -227,7 +227,7 @@
       if (primero) { items.push({ banner: window.ACTOS[d.acto - 1], y: y }); y += BANNER; }
       items.push({ d: d, y: y + 34 }); y += PASO;
     });
-    var alto = y + 90;
+    var alto = y + 170;
     var proximo = 0; window.DIAS.forEach(function (d) { if (abierto(d.n) && !S.listo[d.n] && !proximo) proximo = d.n; });
     var h = '<div class="camino" style="height:' + alto + 'px"><svg class="camino-svg" aria-hidden="true"><defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7E84AE"/><stop offset=".5" stop-color="#CEA2DD"/><stop offset="1" stop-color="#F59356"/></linearGradient></defs><path id="ruta-base" class="ruta-base"/><path id="ruta-avance" class="ruta-avance"/></svg>';
     items.forEach(function (it, k) {
@@ -236,11 +236,11 @@
       var cls = "paso" + (ab ? " abierto" : " cerrado") + (ok ? " hecho" : "") + (actual ? " actual" : "");
       var tag = ab ? "a" : "div", href = ab ? ' href="dia.html?d=' + d.n + (PREVIEW ? "&preview=1" : "") + '"' : "";
       h += "<" + tag + href + ' class="' + cls + '" data-n="' + d.n + '" style="top:' + it.y + "px;--c:" + window.ACTOS[d.acto - 1].color + ";--k:" + k + '">' +
-        '<span class="nodo">' + (ok ? "✓" : (ab ? d.emoji : "🔒")) + '<i class="n">' + d.n + "</i></span>" +
+        '<span class="nodo">' + (ok ? "✓" : '<img src="assets/' + d.img + '" alt="">' + (ab ? "" : '<u class="cand">🔒</u>')) + '<i class="n">' + d.n + "</i></span>" +
         '<span class="rotulo"><b>' + esc(d.titulo) + "</b><small>" + (ab ? (ok ? "Completado" : (actual ? "Te toca hoy" : "Abierta")) : "Se abre el " + fechaTxt(d.n)) + "</small></span>" +
         (actual ? '<em class="aqui">¡Aquí estás!</em>' : "") + "</" + tag + ">";
     });
-    h += '<div class="meta-final" style="top:' + (y + 6) + 'px"><span>🌟</span><b>Mi Wrapped financiero</b><small>Todo tu camino en una hoja</small></div></div>';
+    h += '<div class="meta-final" style="top:' + (y + 6) + 'px"><img src="assets/st-poder.png" alt=""><b>Mi Wrapped financiero</b><small>Todo tu camino en una hoja</small></div></div>';
     cont.innerHTML = h;
     // la ruta se dibuja por el centro de cada parada, alternando izquierda y derecha
     function trazar() {
@@ -285,7 +285,7 @@
       }
     });
     if (!partes.length) return "";
-    return '<section class="r-dia"><div class="r-dia-h"><span>Día ' + d.n + "</span> " + d.emoji + " " + esc(d.titulo) + "</div>" + partes.join("") + "</section>";
+    return '<section class="r-dia"><div class="r-dia-h"><span>Día ' + d.n + "</span> " + esc(d.titulo) + "</div>" + partes.join("") + "</section>";
   }
   function pagResumen() {
     var raiz = document.getElementById("app");

@@ -137,3 +137,28 @@
 .wa{ background:var(--verde); border-radius:20px; padding:14px 16px; margin-top:18px; display:flex; flex-direction:column; gap:8px; }
 .wa .wa-txt{ min-height:120px; }
 .wa-btns{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+/* ── Estilo Feminario: sin manchas difusas; formas e ilustraciones de la marca ── */
+.blob{ display:none !important; }
+body{ background:#F8F7F2; }
+.fondo{ position:fixed; inset:0; pointer-events:none; z-index:-1; overflow:hidden; }
+.fondo img{ position:absolute; opacity:.9; }
+.f1{ width:70px; top:6%; left:5%; transform:rotate(-12deg); } .f2{ width:84px; top:34%; right:4%; } .f3{ width:56px; bottom:12%; left:6%; } .f4{ width:62px; top:62%; right:7%; transform:rotate(14deg); } .f5{ width:52px; bottom:5%; right:18%; }
+@media(max-width:700px){ .fondo img{ opacity:.55; } .f1,.f3{ width:44px; } .f2,.f4{ width:48px; } }
+.portada{ position:relative; }
+.portada .logo{ display:block; width:170px; margin:0 auto 12px; }
+.sticker{ position:absolute; top:60px; height:150px; pointer-events:none; }
+.sl{ left:-8px; } .sr{ right:-8px; }
+@media(max-width:700px){ .sticker{ height:84px; top:70px; } .portada h1,.portada .lead{ position:relative; z-index:1; } }
+@media(min-width:1000px){ .sl{ left:-120px; height:190px; } .sr{ right:-120px; height:190px; } }
+.nodo img{ width:44px; height:44px; object-fit:contain; }
+.paso.cerrado .nodo img{ filter:grayscale(.9); opacity:.55; }
+.nodo .cand{ position:absolute; bottom:-2px; right:-2px; font-size:15px; text-decoration:none; }
+.meta-final img{ width:96px; height:auto; animation:none; margin-bottom:6px; }
+.meta-final b{ font-size:21px; }
+.dia-head{ position:relative; padding-right:120px; }
+.dia-img{ position:absolute; right:14px; top:14px; height:104px; }
+@media(max-width:520px){ .dia-head{ padding-right:96px; } .dia-img{ height:80px; right:10px; } }
+
+@media(max-width:700px){ .sticker{ display:none; } }
+.nodo img{ width:52px; height:52px; }
