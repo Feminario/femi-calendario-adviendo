@@ -89,15 +89,24 @@
   /* ───────── tablas (filas con categoría) ───────── */
   function filasDe(id) { var a = getV(id); return Array.isArray(a) && a.length ? a : [{ c: "" }]; }
   function suma(id, k) { return filasDe(id).reduce(function (t, f) { return t + toNum(f[k]); }, 0); }
+  var MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  function campoFecha(c, v) {
+    var m = /^(\d{4})-(\d{2})$/.exec(v || ""), ym = m ? m[1] : "", mm = m ? m[2] : "";
+    var ms = '<select data-fm aria-label="Mes"><option value="">Mes</option>' + MESES.map(function (t, i) { var k = (i < 9 ? "0" : "") + (i + 1); return '<option value="' + k + '"' + (k === mm ? " selected" : "") + ">" + t + "</option>"; }).join("") + "</select>";
+    var ys = '<select data-fy aria-label="Año"><option value="">Año</option>' + [2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035].map(function (y) { return '<option value="' + y + '"' + (String(y) === ym ? " selected" : "") + ">" + y + "</option>"; }).join("") + "</select>";
+    return '<div class="fecha" data-tk="' + c.k + '" data-fecha="1" role="group" aria-label="' + esc(c.l) + '">' + ms + ys + "</div>";
+  }
+  function fmtFecha(v) { var m = /^(\d{4})-(\d{2})$/.exec(v || ""); return m ? MESES[+m[2] - 1] + " " + m[1] : v; }
   function filaTabla(b, f, i) {
     var cats = b.cats, enLista = !f.c || cats.indexOf(f.c) > -1;
     var sel = '<select data-tc aria-label="Categoría"><option value="">Categoría…</option>' + cats.map(function (c) { return '<option' + (f.c === c ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("") + '<option value="__otra"' + (enLista ? "" : " selected") + ">Crear categoría…</option></select>";
     var otra = enLista ? "" : '<input type="text" data-tn placeholder="Nombre de la categoría" value="' + esc(f.c) + '">';
     var cols = b.cols.map(function (c) {
+      if (c.fecha) return campoFecha(c, f[c.k]);
       var v = f[c.k]; if (c.moneda && v !== undefined && v !== "") v = Number(toNum(v)).toLocaleString("es-CO");
       return '<input type="text" data-tk="' + c.k + '"' + (c.moneda ? ' inputmode="numeric" data-moneda="1"' : "") + ' placeholder="' + esc(c.l) + '" aria-label="' + esc(c.l) + '" value="' + esc(v == null ? "" : v) + '">';
     }).join("");
-    return '<div class="trow" data-i="' + i + '"><div class="tcat">' + sel + otra + '</div><div class="tcols c' + b.cols.length + '">' + cols + '</div><button type="button" class="x" data-del aria-label="Quitar">×</button></div>';
+    return '<div class="trow" data-i="' + i + '"><div class="tcat">' + sel + otra + '</div><div class="tcols c' + b.cols.length + '">' + cols + '</div><button type="button" class="x" data-del aria-label="Quitar esta fila" title="Quitar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>';
   }
   function pintarTabla(box, b) {
     box.innerHTML = filasDe(b.id).map(function (f, i) { return filaTabla(b, f, i); }).join("") + '<button type="button" class="btn secundario chico" data-mas>+ Agregar ' + (b.una || "categoría") + "</button>" + '<div class="resultado" data-calc="' + (b.calc || "") + '" hidden></div>';
@@ -106,7 +115,7 @@
     var out = []; box.querySelectorAll(".trow").forEach(function (r) {
       var sel = r.querySelector("[data-tc]"), c = sel.value, o = {};
       if (c === "__otra") { var t = r.querySelector("[data-tn]"); c = t ? t.value.trim() : ""; }
-      o.c = c; r.querySelectorAll("[data-tk]").forEach(function (i) { o[i.getAttribute("data-tk")] = i.getAttribute("data-moneda") === "1" ? i.value.replace(/\D/g, "") : i.value; });
+      o.c = c; r.querySelectorAll("[data-tk]").forEach(function (i) { if (i.hasAttribute("data-fecha")) { var fy = i.querySelector("[data-fy]").value, fm = i.querySelector("[data-fm]").value; o[i.getAttribute("data-tk")] = fy && fm ? fy + "-" + fm : ""; return; } o[i.getAttribute("data-tk")] = i.getAttribute("data-moneda") === "1" ? i.value.replace(/\D/g, "") : i.value; });
       out.push(o);
     }); return out;
   }
@@ -291,8 +300,9 @@
       raiz.querySelector("#fin").onclick = function () {
         S.listo[n] = true; guardar(); sincronizar(true); confeti({ n: n === total() ? 260 : 110 }); window.scrollTo(0, 0);
         var msgs = ["Tus metas ya tienen nombre y número.", "Verlas escritas pesa menos que imaginarlas.", "Diste un paso con tu plata.", "Le dejaste una promesa a tu yo del futuro.", "Compartir lo aprendido lo fija."];
-        raiz.innerHTML = n === total() && hechos() === total() ? gracias() :
-          '<div class="card centro fin-dia">' + ESTRELLA + "<h2>¡Lo hiciste, " + esc(S.nombre) + "!</h2><p>" + msgs[n - 1] + '</p><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>';
+        raiz.innerHTML = (n === total() && hechos() === total() ? gracias() :
+          '<div class="card centro fin-dia">' + ESTRELLA + "<h2>¡Lo hiciste, " + esc(S.nombre) + "!</h2><p>" + msgs[n - 1] + '</p><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>') + tarjetaEmi(n, "emi-dia");
+        esperarEmi(n, "emi-dia");
       };
     });
   }
@@ -337,7 +347,7 @@
       var cls = "paso" + (ab ? " abierto" : " cerrado") + (hecho ? " hecho" : "") + (actual ? " actual" : "");
       var tag = ab ? "a" : "div", href = ab ? ' href="dia.html?d=' + d.n + preY() + '"' : "";
       h += "<" + tag + href + ' class="' + cls + '" data-n="' + d.n + '" style="top:' + it.y + "px;--c:" + window.ACTOS[d.acto - 1].color + ";--k:" + k + '">' +
-        '<span class="nodo">' + (hecho ? '<svg viewBox="0 0 24 24" class="ok"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#5E9E6E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<img src="assets/' + d.img + '" alt="">' + (ab ? "" : CANDADO)) + '<i class="n">' + d.n + "</i></span>" +
+        '<span class="nodo">' + ('<img src="assets/' + d.img + '" alt="">' + (ab ? "" : CANDADO)) + '<i class="n">' + d.n + "</i></span>" +
         '<span class="rotulo"><b>' + esc(d.titulo) + "</b><small>" + (ab ? (hecho ? "Completado" : (actual ? "Te toca hoy" : "Abierta")) : "Se abre el " + fechaTxt(d.n)) + "</small></span>" +
         "</" + tag + ">";
     });
@@ -370,7 +380,7 @@
   /* ───────── PDF con todo lo que ha hecho ───────── */
   function filasPDF(titulo, id, b) {
     var fs = filasDe(id).filter(function (f) { return f.c || toNum(f.a) || f.n; }); if (!fs.length) return "";
-    return '<div class="r-item"><div class="r-q">' + esc(titulo) + "</div>" + fs.map(function (f) { return '<div class="plan-fila"><span>' + esc([f.c, f.n].filter(Boolean).join(" · ") || "—") + "</span><strong>" + [f.a ? cop(toNum(f.a)) : "", f.b ? (b.cols[2] ? esc(b.cols[2].l) + " " : "") + (isNaN(toNum(f.b)) || /[a-zA-Z]/.test(f.b) ? esc(f.b) : cop(toNum(f.b))) : ""].filter(Boolean).join(" · ") + "</strong></div>"; }).join("") + "</div>";
+    return '<div class="r-item"><div class="r-q">' + esc(titulo) + "</div>" + fs.map(function (f) { return '<div class="plan-fila"><span>' + esc([f.c, f.n].filter(Boolean).join(" · ") || "—") + "</span><strong>" + [f.a ? cop(toNum(f.a)) : "", f.b ? (b.cols[2] ? esc(b.cols[2].l) + " " : "") + (/^\d{4}-\d{2}$/.test(f.b) ? esc(fmtFecha(f.b)) : isNaN(toNum(f.b)) || /[a-zA-Z]/.test(f.b) ? esc(f.b) : cop(toNum(f.b))) : ""].filter(Boolean).join(" · ") + "</strong></div>"; }).join("") + "</div>";
   }
   function balPDF(b) {
     var xs = itemsDe(b.id).filter(function (x) { return toNum(x.v) || x.n; }); if (!xs.length) return "";
@@ -394,12 +404,33 @@
     if (!partes.length) return "";
     return '<section class="r-dia"><div class="r-dia-h"><span>Día ' + d.n + "</span> " + esc(d.titulo) + "</div>" + partes.join("") + "</section>";
   }
-  // Análisis de Emi: lo escribe Emi cuando ella termina los 5 días (llega también por WhatsApp)
+  // Análisis de Emi: uno corto por cada día completado (lo escribe Emi y también le llega por WhatsApp)
+  function textoDia(n) { var d = S.insights && S.insights.dias && S.insights.dias[n]; return d && d.texto ? d.texto : ""; }
+  function ejemploDemo(n) {
+    var ing = sumaV("d1_ing"), aho = sumaV("d1_ahorros"), gas = sumaV("d2_gastos"), cuo = sumaV("d2_deudas", function (x) { return toNum(x.cuota); }), inv = sumaV("d3_activos");
+    if (n === 1 && ing) return "Te entran " + cop(ing) + " al mes" + (aho ? " y tu ahorro equivale a " + (Math.round(aho / ing * 10) / 10) + " meses de ese ingreso" : "") + ". (Ejemplo: aquí Emi cruza tus datos con tu meta.)";
+    if (n === 2 && gas) return "Tus gastos son el " + Math.round(gas / (ing || gas) * 100) + " % de lo que te entra" + (cuo && ing ? " y las cuotas el " + Math.round(cuo / ing * 100) + " %" : "") + ". (Ejemplo de cómo se verá el análisis de Emi.)";
+    if (n === 3 && inv) return "Tienes " + cop(inv) + " invertidos. (Ejemplo: aquí Emi mira si están repartidos y cuánto aportas.)";
+    return "Aquí Emi te cuenta lo que vio en lo que escribiste hoy. (Ejemplo del modo demo.)";
+  }
+  function tarjetaEmi(n, id) {
+    var t = textoDia(n) || (DEMO ? ejemploDemo(n) : "");
+    return '<div class="card emi-analisis" id="' + id + '"><div class="res-label">Emi vio esto en tus números</div>' + (t ? '<div class="emi-txt">' + esc(t) + "</div>" : '<p class="centro suave emi-esp" style="margin:0">Emi está leyendo lo que escribiste hoy… en un momento aparece aquí y te llega por WhatsApp 💜</p>') + "</div>";
+  }
+  function esperarEmi(n, id) {
+    if (DEMO || !CFG.API || textoDia(n)) return;
+    var intentos = 0, t = setInterval(function () {
+      var el = document.getElementById(id); if (!el || ++intentos > 40) { clearInterval(t); return; }
+      fetch(CFG.API + "?id=" + encodeURIComponent(S.id), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.insights) { S.insights = j.insights; try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+        if (textoDia(n)) { clearInterval(t); el.innerHTML = '<div class="res-label">Emi vio esto en tus números</div><div class="emi-txt">' + esc(textoDia(n)) + "</div>"; }
+      }).catch(function () {});
+    }, 8000);
+  }
   function analisisEmi() {
-    var ins = S.insights;
-    if (ins && ins.texto) return '<div class="card emi-analisis"><div class="res-label">El análisis de Emi</div>' + (Array.isArray(ins.datos) && ins.datos.length ? '<div class="emi-datos">' + ins.datos.map(function (d) { return '<div><b>' + esc(d.valor) + "</b><small>" + esc(d.etiqueta) + "</small></div>"; }).join("") + "</div>" : "") + '<div class="emi-txt">' + esc(ins.texto).replace(/\n/g, "<br>") + "</div></div>";
-    if (!DEMO && hechos() >= total()) return '<div class="card emi-analisis"><div class="res-label">El análisis de Emi</div><p class="centro" style="margin:0">Emi está revisando tus números. En unos minutos te llega tu análisis por WhatsApp y aparece aquí.</p></div>';
-    return "";
+    var out = "";
+    for (var n = 1; n <= 5; n++) { var t = textoDia(n); if (t) out += '<div class="r-item"><div class="r-q">Día ' + n + " · lo que vio Emi</div><div class=\"r-a\">" + esc(t) + "</div></div>"; }
+    return out ? '<div class="card emi-analisis"><div class="res-label">El análisis de Emi</div>' + out + "</div>" : "";
   }
   function pagResumen() {
     var raiz = document.getElementById("app");

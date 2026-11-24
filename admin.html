@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Adviento · Admin Feminario</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@600;800&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/marca.css">
+<style>
+  #app{ max-width:1100px; margin:0 auto; padding:20px 18px 60px; }
+  header{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  header img{ height:40px; } .tit{ font-family:'MuseoModerno',sans-serif; font-weight:800; font-size:22px; color:var(--morado-oscuro); text-align:center; flex:1; }
+  .acc{ display:flex; gap:8px; }
+  .caja{ background:#fff; border-radius:24px; padding:20px; box-shadow:0 6px 20px rgba(76,79,104,.08); margin-bottom:16px; }
+  .caja h2{ font-family:'MuseoModerno',sans-serif; font-size:19px; margin:0 0 10px; color:var(--morado-oscuro); text-align:center; }
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:16px; }
+  .kpi{ background:#fff; border-radius:20px; padding:16px; text-align:center; box-shadow:0 6px 20px rgba(76,79,104,.08); }
+  .kpi b{ display:block; font-family:'MuseoModerno',sans-serif; font-size:34px; color:var(--morado-oscuro); } .kpi small{ color:var(--morado); font-weight:700; font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+  .dias{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .bt{ border:1.5px solid rgba(126,132,174,.35); background:#fff; color:var(--morado-oscuro); border-radius:999px; padding:10px 18px; font:inherit; font-weight:700; font-size:14px; cursor:pointer; }
+  .bt.on{ background:var(--morado); border-color:var(--morado); color:#fff; } .bt:disabled{ opacity:.6; cursor:wait; }
+  .ahora{ text-align:center; font-weight:700; margin:12px 0 0; } .nota{ text-align:center; color:var(--morado-suave); font-size:13px; margin:4px 0 0; }
+  .barra-f{ display:grid; grid-template-columns:minmax(120px,260px) 1fr 64px; gap:10px; align-items:center; margin:8px 0; font-size:13.5px; }
+  .pista{ height:12px; border-radius:8px; background:rgba(126,132,174,.16); overflow:hidden; } .pista i{ display:block; height:100%; background:linear-gradient(90deg,var(--morado),var(--lavanda)); border-radius:8px; }
+  .buscar{ width:100%; padding:12px 16px; border-radius:16px; border:1.5px solid rgba(126,132,174,.3); font:inherit; font-size:15px; margin-bottom:14px; box-sizing:border-box; }
+  .rejilla{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+  .ficha{ border:1.5px solid rgba(126,132,174,.22); border-radius:20px; padding:14px; background:#fff; }
+  .cab{ display:flex; gap:12px; align-items:center; } .cab img,.ini{ width:56px; height:56px; border-radius:50%; object-fit:cover; flex:none; border:3px solid var(--periwinkle); }
+  .ini{ display:flex; align-items:center; justify-content:center; background:var(--periwinkle); font-family:'MuseoModerno',sans-serif; font-size:22px; color:var(--morado-oscuro); }
+  .cab b{ display:block; font-size:15px; } .cab small{ color:var(--morado); font-weight:600; }
+  .pasos{ display:flex; gap:4px; margin-top:6px; } .pasos i{ width:18px; height:8px; border-radius:4px; background:rgba(126,132,174,.2); } .pasos i.ok{ background:var(--morado); }
+  details summary{ cursor:pointer; color:var(--morado); font-weight:700; font-size:13.5px; margin-top:10px; }
+  .d{ margin-top:10px; font-size:13.5px; border-top:1px dashed rgba(126,132,174,.3); padding-top:8px; } .d span{ display:block; color:var(--morado); font-weight:700; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; margin-top:8px; }
+  .d ul{ margin:2px 0 0; padding-left:18px; } .d p{ margin:2px 0 0; white-space:pre-wrap; }
+  .login{ max-width:380px; margin:12vh auto 0; text-align:center; } .login img{ width:170px; margin-bottom:12px; } .login input{ width:100%; padding:14px 16px; border-radius:16px; border:1.5px solid rgba(126,132,174,.3); font:inherit; font-size:16px; margin:12px 0; box-sizing:border-box; }
+  .err{ color:var(--alerta); font-weight:600; min-height:20px; font-size:13.5px; }
+  @media(max-width:560px){ .barra-f{ grid-template-columns:1fr 54px; } .barra-f .pista{ grid-column:1 / -1; order:3; } }
+</style>
+</head><body>
+<main id="app"></main>
+<script>
+(function () {
+  var API = "https://femi-panel.vercel.app/api/adviento/admin", CLAVE_KEY = "adviento_admin_clave";
+  var DIAS = ["Tus sueños, con nombre y número", "Tus deudas, sin miedo ni culpa", "Que tu plata trabaje por ti", "Una carta para tu yo del futuro", "Gracias, mujer que me inspiró"];
+  var TIPOS_INV = ["CDT y renta fija", "Fondos de inversión", "Acciones y ETF", "Criptomonedas", "Finca raíz", "Pensión voluntaria o cesantías invertidas", "Dólares u oro", "Otra inversión"];
+  var TIPOS_DEUDA = ["Tarjeta de crédito", "Crédito de libre inversión", "Crédito de vivienda", "Crédito de vehículo", "Crédito educativo", "Familia o amigas", "Fiado u otra deuda"];
+  var MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  var app = document.getElementById("app"), clave = "", datos = null, filtro = "";
+  try { clave = sessionStorage.getItem(CLAVE_KEY) || ""; } catch (e) {}
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
+  function num(v) { var n = Number(String(v == null ? "" : v).replace(/\D/g, "")); return isFinite(n) ? n : 0; }
+  function cop(n) { return "$" + Math.round(n).toLocaleString("es-CO"); }
+  function filas(v) { return (Array.isArray(v) ? v : []).filter(function (x) { return x && (num(x.v) || num(x.a) || x.n || x.c); }); }
+  function suma(xs, k) { return xs.reduce(function (t, x) { return t + num(x[k || "v"]); }, 0); }
+  function lista(xs) { return xs.length ? "<ul>" + xs.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" : ""; }
+  function fecha(v) { var m = /^(\d{4})-(\d{2})$/.exec(v || ""); return m ? MESES[+m[2] - 1] + " " + m[1] : (v || ""); }
+  function cuando(iso) { try { return new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch (e) { return ""; } }
+
+  function entrar(msg) {
+    app.innerHTML = '<div class="login caja"><img src="assets/logo-feminario.png" alt="Feminario"><h2>Admin del calendario de adviento</h2><input type="password" id="k" placeholder="Clave del equipo" autocomplete="current-password"><div class="err" id="e">' + esc(msg || "") + '</div><button class="btn" id="go" type="button">Entrar</button></div>';
+    var k = app.querySelector("#k"); k.focus();
+    function ir() { clave = k.value.trim(); if (!clave) return; try { sessionStorage.setItem(CLAVE_KEY, clave); } catch (e) {} cargar(); }
+    app.querySelector("#go").onclick = ir; k.onkeydown = function (e) { if (e.key === "Enter") ir(); };
+  }
+  function cargar() {
+    fetch(API, { headers: { "x-clave": clave }, cache: "no-store" }).then(function (r) {
+      if (r.status === 401) { try { sessionStorage.removeItem(CLAVE_KEY); } catch (e) {} entrar("Clave incorrecta."); return null; }
+      return r.json();
+    }).then(function (j) { if (j && j.ok) { datos = j; pintar(); } }).catch(function () { entrar("No pudimos conectar. Revisa tu internet."); });
+  }
+  function poner(n) {
+    fetch(API, { method: "POST", headers: { "x-clave": clave, "content-type": "application/json" }, body: JSON.stringify({ hasta: n }) }).then(function (r) { return r.json(); })
+      .then(function (j) { if (j.ok) { datos.hasta = j.hasta; pintar(); } else alert("No se pudo guardar."); }).catch(function () { alert("No se pudo guardar. Revisa tu internet."); });
+  }
+  function ficha(f) {
+    var v = f.v || {}, ing = filas(v.d1_ing), aho = filas(v.d1_ahorros), metas = filas(v.d1_metas), deu = filas(v.d2_deudas), bie = filas(v.d2_bienes), gas = filas(v.d2_gastos), inv = filas(v.d3_activos), apo = filas(v.d3_aportes);
+    var h = '<article class="ficha"><div class="cab">' + (f.foto ? '<img src="' + esc(f.foto) + '" alt="">' : '<span class="ini">' + esc((f.nombre || "?").charAt(0).toUpperCase()) + "</span>") + "<div><b>" + esc(f.nombre) + "</b><small>" + (f.dias || 0) + " de 5 días</small>";
+    h += '<div class="pasos">' + [1, 2, 3, 4, 5].map(function (n) { return '<i class="' + (f.listo && f.listo[n] ? "ok" : "") + '"></i>'; }).join("") + "</div></div></div>";
+    h += "<details><summary>Ver más</summary><div class=\"d\"><span>Contacto</span><p>" + esc(f.email) + "<br>" + esc(f.whatsapp || "") + "</p><span>Última actividad</span><p>" + esc(cuando(f.actualizado_en)) + "</p>";
+    if (ing.length) h += "<span>Lo que entra cada mes · " + cop(suma(ing)) + "</span>" + lista(ing.map(function (x) { return (x.n || "Ingreso") + ": " + cop(num(x.v)) + " (" + (x.t === "var" ? "variable" : "fijo") + ")"; }));
+    if (aho.length) h += "<span>Ahorrado · " + cop(suma(aho)) + "</span>" + lista(aho.map(function (x) { return (x.n || "Ahorro") + ": " + cop(num(x.v)); }));
+    if (metas.length) h += "<span>Metas</span>" + lista(metas.map(function (x) { return [x.c, x.n].filter(Boolean).join(" · ") + (num(x.a) ? " — " + cop(num(x.a)) : "") + (x.b ? " para " + fecha(x.b) : ""); }));
+    if (deu.length) h += "<span>Deudas · " + cop(suma(deu)) + " (cuotas " + cop(suma(deu, "cuota")) + " al mes)</span>" + lista(deu.map(function (x) { return (x.n || TIPOS_DEUDA[+x.tj] || "Deuda") + (x.n && x.tj ? " (" + TIPOS_DEUDA[+x.tj] + ")" : "") + ": " + cop(num(x.v)); }));
+    if (bie.length) h += "<span>Bienes</span>" + lista(bie.map(function (x) { return (x.n || "Bien") + ": " + cop(num(x.v)) + " · " + (x.est === "pagando" ? "lo está pagando (faltan " + cop(num(x.debo)) + ")" : x.est === "mio" ? "ya es suyo" : "sin aclarar"); }));
+    if (gas.length) h += "<span>Gastos al mes · " + cop(suma(gas)) + "</span>" + lista(gas.map(function (x) { return (x.n || "Gasto") + ": " + cop(num(x.v)) + " (" + (x.t === "var" ? "variable" : "fijo") + ")"; }));
+    if (v.d2_sorpresa) h += "<span>¿Qué le sorprendió?</span><p>" + esc(v.d2_sorpresa) + "</p>";
+    if (v.d3_camino === "no") h += "<span>Inversiones</span><p>Nunca ha invertido · podría apartar " + cop(num(v.d3_aporte)) + " al mes</p>";
+    else if (inv.length) h += "<span>Inversiones · " + cop(suma(inv)) + "</span>" + lista(inv.map(function (x) { return (x.n || TIPOS_INV[+x.tj] || "Inversión") + (x.n && x.tj ? " (" + TIPOS_INV[+x.tj] + ")" : "") + ": " + cop(num(x.v)); }));
+    if (apo.length) h += "<span>Aporta cada mes</span><p>" + cop(suma(apo)) + "</p>";
+    if (v.d4_carta) h += "<span>Carta a su yo de 2027</span><p>" + esc(v.d4_carta) + "</p>";
+    if (v.d5_carta) h += "<span>Carta de gratitud (para " + esc(v.d5_para || "una mujer que admira") + ")</span><p>" + esc(v.d5_carta) + "</p>";
+    if (f.insights && f.insights.dias) { var tx = Object.keys(f.insights.dias).sort().map(function (k) { return "Día " + k + ": " + f.insights.dias[k].texto; }); if (tx.length) h += "<span>Lo que le dijo Emi</span><p>" + esc(tx.join("\n\n")) + "</p>"; }
+    return h + "</div></details></article>";
+  }
+  function csv() {
+    var filasCsv = [["Nombre", "Correo", "WhatsApp", "Días completados", "Ingresos al mes", "Ahorrado", "Deudas", "Gastos al mes", "Invertido", "Última actividad"]];
+    datos.mujeres.forEach(function (f) { var v = f.v || {}; filasCsv.push([f.nombre, f.email, f.whatsapp, f.dias || 0, suma(filas(v.d1_ing)), suma(filas(v.d1_ahorros)), suma(filas(v.d2_deudas)), suma(filas(v.d2_gastos)), suma(filas(v.d3_activos)), f.actualizado_en]); });
+    var t = filasCsv.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + t], { type: "text/csv;charset=utf-8" })); a.download = "adviento-feminario.csv"; a.click();
+  }
+  function pintar() {
+    var M = datos.mujeres, q = filtro.toLowerCase();
+    var vis = M.filter(function (f) { return !q || (String(f.nombre) + " " + f.email + " " + (f.whatsapp || "")).toLowerCase().indexOf(q) > -1; });
+    var porDia = DIAS.map(function (t, i) { return M.filter(function (f) { return f.listo && f.listo[i + 1]; }).length; });
+    var h = '<header><img src="assets/logo-feminario.png" alt="Feminario"><div class="tit">Calendario de adviento · Admin</div><div class="acc"><button class="bt" id="rec" type="button">Actualizar</button><button class="bt" id="csv" type="button">Descargar CSV</button><button class="bt" id="sal" type="button">Salir</button></div></header>';
+    h += '<div class="kpis"><div class="kpi"><b>' + M.length + "</b><small>Lo empezaron</small></div><div class=\"kpi\"><b>" + M.filter(function (f) { return (f.dias || 0) >= 5; }).length + "</b><small>Terminaron los 5 días</small></div><div class=\"kpi\"><b>" + M.filter(function (f) { return f.customer_id; }).length + "</b><small>Ya están en la base</small></div></div>";
+    h += '<section class="caja"><h2>Días abiertos</h2><p class="nota" style="margin-bottom:10px">Toca un día para abrirlo (y todos los anteriores). Las mujeres lo ven al recargar el calendario.</p><div class="dias">';
+    for (var n = 1; n <= 5; n++) h += '<button class="bt' + (datos.hasta !== null && n <= datos.hasta ? " on" : "") + '" data-d="' + n + '" type="button">' + (datos.hasta !== null && n <= datos.hasta ? "🔓" : "🔒") + " Día " + n + "</button>";
+    h += '<button class="bt" data-d="0" type="button">Cerrar todo</button><button class="bt" data-d="auto" type="button">Automático por fecha</button></div>';
+    h += '<p class="ahora">' + (datos.hasta === null ? "Ahora: automático (cada día se abre en su fecha, del 30 de noviembre al 4 de diciembre)." : datos.hasta === 0 ? "Ahora: cerrado." : "Ahora: abiertos del día 1 al " + datos.hasta + ".") + "</p></section>";
+    h += '<section class="caja"><h2>Cuántas completaron cada día</h2>' + porDia.map(function (c, i) { var p = M.length ? Math.round(c / M.length * 100) : 0; return '<div class="barra-f"><span>Día ' + (i + 1) + " · " + esc(DIAS[i]) + '</span><div class="pista"><i style="width:' + p + '%"></i></div><b>' + c + " · " + p + " %</b></div>"; }).join("") + "</section>";
+    h += '<section class="caja"><h2>Ellas</h2><input class="buscar" id="q" type="search" placeholder="Buscar por nombre, correo o WhatsApp" value="' + esc(filtro) + '">' + (vis.length ? '<div class="rejilla">' + vis.map(ficha).join("") + "</div>" : '<p class="nota">' + (M.length ? "Nadie coincide con esa búsqueda." : "Todavía nadie ha empezado el calendario.") + "</p>") + "</section>";
+    app.innerHTML = '<div style="max-width:1100px;margin:0 auto">' + h + "</div>";
+    app.querySelector("#rec").onclick = cargar; app.querySelector("#csv").onclick = csv;
+    app.querySelector("#sal").onclick = function () { try { sessionStorage.removeItem(CLAVE_KEY); } catch (e) {} clave = ""; entrar(""); };
+    app.querySelectorAll("[data-d]").forEach(function (b) { b.onclick = function () { b.disabled = true; var v = b.getAttribute("data-d"); poner(v === "auto" ? null : +v); }; });
+    var q2 = app.querySelector("#q"); q2.oninput = function () { filtro = q2.value; var pos = q2.selectionStart; pintar(); var n2 = app.querySelector("#q"); n2.focus(); try { n2.setSelectionRange(pos, pos); } catch (e) {} };
+  }
+  if (clave) cargar(); else entrar("");
+})();
+</script>
+</body></html>

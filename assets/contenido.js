@@ -17,7 +17,7 @@ window.DIAS = [
     bloques: [
       { t: "bal", id: "d1_ing", titulo: "Lo que entra cada mes", tipo: "ingreso", una: "ingreso", ph: "Salario, negocio, arriendo, pensión…", calc: "ingresos" },
       { t: "bal", id: "d1_ahorros", titulo: "Lo que tengo ahorrado", una: "ahorro", ph: "Cuenta de ahorros, efectivo, fondo de emergencia…", calc: "ahorro" },
-      { t: "tabla", id: "d1_metas", titulo: "Tus metas", cats: CAT_METAS, una: "meta", cols: [{ k: "n", l: "¿Qué quieres lograr?" }, { k: "a", l: "Cuánto cuesta", moneda: true }, { k: "b", l: "Para cuándo" }] },
+      { t: "tabla", id: "d1_metas", titulo: "Tus metas", cats: CAT_METAS, una: "meta", cols: [{ k: "n", l: "¿Qué quieres lograr?" }, { k: "a", l: "Costo", moneda: true }, { k: "b", l: "Para cuándo", fecha: true }] },
       { t: "wa", texto: "Hoy construí mis metas para 2027. ¿Cuál es la tuya?" }
     ] },
 
