@@ -449,7 +449,7 @@
   var DIA_ACT = 0, cacheIA = {}, tPre = null, nPre = 0;
   function clavePre(n) { return n + "|" + JSON.stringify(hechosDia(n)); }
   function adelantarIA() {
-    if (!DIA_ACT || !CFG.API || nPre >= 4) return;
+    if (!DIA_ACT || !CFG.API) return;
     clearTimeout(tPre);
     tPre = setTimeout(function () { var n = DIA_ACT, k = clavePre(n); if (!cacheIA[k]) { nPre++; cacheIA[k] = iaDia(n); } }, 2000);
   }
