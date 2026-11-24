@@ -14,7 +14,33 @@
     try { var s = JSON.parse(ALM.getItem(KEY)); if (s && s.v) return s; } catch (e) {}
     return { nombre: "", foto: "", v: {}, listo: {} };
   }
-  function guardar() { try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function guardar() { try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} sincronizar(); }
+
+  /* ───────── panel: guardar respuestas y saber qué días abrió el equipo ───────── */
+  var HASTA = null;          // hasta qué día abrió el equipo (null = por fecha)
+  var tSync = null;
+  function sincronizar(ya) {
+    if (DEMO || !CFG.API || !S.id || !S.email || !S.permiso) return;
+    clearTimeout(tSync);
+    tSync = setTimeout(function () {
+      var cuerpo = { id: S.id, nombre: S.nombre, email: S.email, whatsapp: S.wa || "", consentimiento: true, v: S.v, listo: S.listo };
+      if (S.fotoPend && S.foto) cuerpo.foto = S.foto;
+      try {
+        fetch(CFG.API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo), keepalive: true })
+          .then(function (r) { if (r.ok && cuerpo.foto) { S.fotoPend = false; try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} } }).catch(function () {});
+      } catch (e) {}
+    }, ya ? 0 : 1500);
+  }
+  function consultarPanel(listo) {
+    if (DEMO || !CFG.API) { listo(); return; }
+    var hecho = false, fin = function () { if (!hecho) { hecho = true; listo(); } };
+    setTimeout(fin, 2500);
+    try {
+      fetch(CFG.API + (S.id ? "?id=" + encodeURIComponent(S.id) : ""), { cache: "no-store" }).then(function (r) { return r.json(); })
+        .then(function (j) { if (j && typeof j.hasta === "number") HASTA = j.hasta; if (j && j.insights) { S.insights = j.insights; try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} } fin(); }).catch(fin);
+    } catch (e) { fin(); }
+  }
+  function nuevoId() { var t = "c"; for (var i = 0; i < 14; i++) t += "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36)); return t; }
   function setV(k, val) { S.v[k] = val; guardar(); }
   function getV(k) { return S.v[k]; }
 
@@ -24,7 +50,7 @@
   function num(k) { return toNum(S.v[k]); }
   function cop(n) { return "$ " + Math.round(n).toLocaleString("es-CO"); }
   function fechaDia(n) { var i = CFG.INICIO || [2026, 11, 30]; return new Date(i[0], i[1] - 1, i[2] + n - 1); }
-  function abierto(n) { if (PREVIEW) return true; var h = new Date(); h.setHours(0, 0, 0, 0); return h >= fechaDia(n); }
+  function abierto(n) { if (PREVIEW) return true; if (HASTA !== null) return n <= HASTA; var h = new Date(); h.setHours(0, 0, 0, 0); return h >= fechaDia(n); }
   function fechaTxt(n) { return fechaDia(n).toLocaleDateString("es-CO", { day: "numeric", month: "long" }); }
   function total() { return window.DIAS.length; }
   function hechos() { return Object.keys(S.listo).filter(function (k) { return S.listo[k]; }).length; }
@@ -41,15 +67,22 @@
 
   /* ───────── identidad (solo el nombre) ───────── */
   function pedirIdentidad(destino, despues) {
-    if (S.nombre) { despues(); return; }
+    if (S.nombre && (DEMO || (S.email && S.permiso))) { if (!S.id) { S.id = nuevoId(); guardar(); } despues(); return; }
     destino.innerHTML =
-      '<div class="card centro"><h2>Antes de empezar</h2><p class="suave">Lo que escribas se queda solo en este dispositivo.</p>' +
+      '<div class="card centro"><h2>Antes de empezar</h2><p class="suave">Con esto guardamos tu avance y Emi te acompaña con un análisis de tus números al final.</p>' +
       '<label for="id-nombre">¿Cómo te llamas?</label><input type="text" id="id-nombre" autocomplete="given-name" value="' + esc(S.nombre) + '">' +
+      '<label for="id-email">Tu correo</label><input type="email" id="id-email" autocomplete="email" value="' + esc(S.email || "") + '">' +
+      '<label for="id-wa">Tu WhatsApp</label><input type="tel" id="id-wa" autocomplete="tel" placeholder="Con indicativo, ej. +57 300…" value="' + esc(S.wa || "") + '">' +
+      '<label class="check"><input type="checkbox" id="id-ok"' + (S.permiso ? " checked" : "") + '><span>Acepto que Feminario guarde lo que escribo aquí para acompañarme (el equipo y Emi lo ven; nadie más).</span></label>' +
       '<div class="error" id="id-err"></div><button class="btn" id="id-go">Empezar</button></div>';
     destino.querySelector("#id-go").onclick = function () {
-      var n = destino.querySelector("#id-nombre").value.trim(), err = destino.querySelector("#id-err");
+      var n = destino.querySelector("#id-nombre").value.trim(), em = destino.querySelector("#id-email").value.trim(), wa = destino.querySelector("#id-wa").value.trim(), ok = destino.querySelector("#id-ok").checked, err = destino.querySelector("#id-err");
       if (!n) { err.textContent = "Escribe tu nombre."; return; }
-      S.nombre = n; guardar(); despues();
+      if (!DEMO && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { err.textContent = "Escribe un correo válido."; return; }
+      if (!DEMO && wa.replace(/\D/g, "").length < 7) { err.textContent = "Escribe tu WhatsApp para que Emi te mande tu análisis."; return; }
+      if (!DEMO && !ok) { err.textContent = "Marca la casilla para poder guardar tu avance."; return; }
+      S.nombre = n; S.email = em; S.wa = wa; S.permiso = ok || DEMO; if (!S.id) S.id = nuevoId(); if (S.foto) S.fotoPend = true;
+      guardar(); sincronizar(true); despues();
     };
   }
 
@@ -256,7 +289,7 @@
       cuerpo.querySelectorAll("[data-custom]").forEach(function (c) { var f = CUSTOM[c.getAttribute("data-custom")]; if (f) f(c); });
       cuerpo.querySelectorAll("[data-wa-copiar]").forEach(function (bt) { bt.onclick = function () { var t = bt.parentNode.querySelector(".wa-txt"); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand("copy"); } bt.textContent = "Copiado"; }; });
       raiz.querySelector("#fin").onclick = function () {
-        S.listo[n] = true; guardar(); confeti({ n: n === total() ? 260 : 110 }); window.scrollTo(0, 0);
+        S.listo[n] = true; guardar(); sincronizar(true); confeti({ n: n === total() ? 260 : 110 }); window.scrollTo(0, 0);
         var msgs = ["Tus metas ya tienen nombre y número.", "Verlas escritas pesa menos que imaginarlas.", "Diste un paso con tu plata.", "Le dejaste una promesa a tu yo del futuro.", "Compartir lo aprendido lo fija."];
         raiz.innerHTML = n === total() && hechos() === total() ? gracias() :
           '<div class="card centro fin-dia">' + ESTRELLA + "<h2>¡Lo hiciste, " + esc(S.nombre) + "!</h2><p>" + msgs[n - 1] + '</p><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>';
@@ -270,7 +303,7 @@
     fr.onload = function () {
       var im = new Image(); im.onload = function () {
         var c = document.createElement("canvas"), L = 240, m = Math.min(im.width, im.height), x = (im.width - m) / 2, y = (im.height - m) / 2;
-        c.width = c.height = L; c.getContext("2d").drawImage(im, x, y, m, m, 0, 0, L, L); S.foto = c.toDataURL("image/jpeg", 0.85); guardar(); cb();
+        c.width = c.height = L; c.getContext("2d").drawImage(im, x, y, m, m, 0, 0, L, L); S.foto = c.toDataURL("image/jpeg", 0.85); S.fotoPend = true; guardar(); cb();
       }; im.src = fr.result;
     }; fr.readAsDataURL(file);
   }
@@ -361,6 +394,13 @@
     if (!partes.length) return "";
     return '<section class="r-dia"><div class="r-dia-h"><span>Día ' + d.n + "</span> " + esc(d.titulo) + "</div>" + partes.join("") + "</section>";
   }
+  // Análisis de Emi: lo escribe Emi cuando ella termina los 5 días (llega también por WhatsApp)
+  function analisisEmi() {
+    var ins = S.insights;
+    if (ins && ins.texto) return '<div class="card emi-analisis"><div class="res-label">El análisis de Emi</div>' + (Array.isArray(ins.datos) && ins.datos.length ? '<div class="emi-datos">' + ins.datos.map(function (d) { return '<div><b>' + esc(d.valor) + "</b><small>" + esc(d.etiqueta) + "</small></div>"; }).join("") + "</div>" : "") + '<div class="emi-txt">' + esc(ins.texto).replace(/\n/g, "<br>") + "</div></div>";
+    if (!DEMO && hechos() >= total()) return '<div class="card emi-analisis"><div class="res-label">El análisis de Emi</div><p class="centro" style="margin:0">Emi está revisando tus números. En unos minutos te llega tu análisis por WhatsApp y aparece aquí.</p></div>';
+    return "";
+  }
   function pagResumen() {
     var raiz = document.getElementById("app");
     pedirIdentidad(raiz, function () {
@@ -374,7 +414,7 @@
         bandaDemo() + '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + hechos() + "/" + total() + "</span></div>" +
         '<div class="dia-head"><img class="dia-img" src="assets/st-poder.png" alt=""><h1>Mi Wrapped financiero</h1></div>' +
         '<div id="pdf-doc" class="pdf-doc"><div class="pdf-portada"><img src="assets/logo-feminario.png" alt="Feminario"><div class="res-label">Adviento Feminario 2026</div><h1>' + esc(S.nombre) + "</h1></div>" +
-        resumen + (cuerpo || '<p class="suave centro">Completa tu primer día y aquí aparece tu resumen.</p>') + '<p class="pdf-pie">Feminario · @feminario.co · Contenido educativo, no asesoría financiera personalizada.</p></div>' +
+        resumen + analisisEmi() + (cuerpo || '<p class="suave centro">Completa tu primer día y aquí aparece tu resumen.</p>') + '<p class="pdf-pie">Feminario · @feminario.co · Contenido educativo, no asesoría financiera personalizada.</p></div>' +
         '<div class="acciones"><button class="btn" id="pdf-go" type="button">Descargar mi PDF</button><a class="btn secundario" target="_blank" rel="noopener" href="' + esc(CFG.CLUB_URL) + '">Conocer el Club 365</a></div>' +
         '<p class="mini"><a href="#" id="copia">Guardar copia de mis datos</a> · <a href="#" id="borrar">Borrar mis datos</a></p><div class="aviso" id="pdf-av"></div>';
       var av = raiz.querySelector("#pdf-av");
@@ -393,5 +433,6 @@
     });
   }
 
-  window.CAL = { portada: pagPortada, dia: pagDia, resumen: pagResumen };
+  function tras(f) { return function () { consultarPanel(f); }; }
+  window.CAL = { portada: tras(pagPortada), dia: tras(pagDia), resumen: tras(pagResumen) };
 })();

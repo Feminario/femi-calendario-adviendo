@@ -1,8 +1,10 @@
 // Configuración del calendario de adviento de Feminario (30 nov al 4 dic de 2026). Solo cosas públicas: aquí NUNCA van datos de las mujeres.
-// Todo lo que escribe cada mujer se guarda SOLO en su dispositivo (no hay servidor ni hoja).
+// Lo que escribe cada mujer se guarda en su dispositivo y en el panel de Feminario (con su permiso), para que el equipo y Emi la acompañen.
 window.CAL_CFG = {
   // Primer día (año, mes 1-12, día). Cada puerta se abre en su fecha y queda abierta: se hace a su ritmo.
   INICIO: [2026, 11, 30],
+  // Panel: guarda las respuestas y dice hasta qué día está abierto (lo controla el equipo en el panel, página «Adviento»)
+  API: "https://femi-panel.vercel.app/api/adviento",
   // Enlace del grupo de WhatsApp de la dinámica (lo envía Caro). Vacío = muestra «llega muy pronto».
   GRUPO_WA: "",
   // Sesión en conjunto con Andre y Tina (día 4).

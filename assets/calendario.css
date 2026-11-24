@@ -245,3 +245,8 @@ h1,h2,h3,.bloque h3,.card h2,.dia-head h1{ text-align:center; }
 /* el día que le toca: solo un círculo morado alrededor (sin globo ni onda naranja) */
 .paso.actual .nodo{ animation:none; box-shadow:0 0 0 4px #fff, 0 0 0 8px var(--morado), 0 10px 22px rgba(76,79,104,.22); }
 .paso.actual .nodo::after{ display:none; }
+.emi-analisis{ background:linear-gradient(135deg,#fff,var(--rosa-claro)); border:2px solid var(--periwinkle); margin:0 0 18px; }
+.emi-datos{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin:10px 0 12px; }
+.emi-datos>div{ background:#fff; border-radius:14px; padding:10px; text-align:center; display:flex; flex-direction:column; }
+.emi-datos b{ font-family:'MuseoModerno',sans-serif; font-size:20px; color:var(--morado-oscuro); } .emi-datos small{ font-size:11.5px; color:var(--morado); font-weight:600; }
+.emi-txt{ font-size:14.5px; line-height:1.6; color:var(--texto); }
