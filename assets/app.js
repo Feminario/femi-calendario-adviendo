@@ -23,7 +23,7 @@
     if (DEMO || !CFG.API || !S.id || !S.email || !S.permiso) return;
     clearTimeout(tSync);
     tSync = setTimeout(function () {
-      var cuerpo = { id: S.id, nombre: S.nombre, email: S.email, whatsapp: S.wa || "", consentimiento: true, v: S.v, listo: S.listo };
+      var cuerpo = { id: S.id, nombre: S.nombre, email: S.email, whatsapp: S.wa || "", consentimiento: true, v: S.v, listo: S.listo, emi: S.emi || {} };
       if (S.fotoPend && S.foto) cuerpo.foto = S.foto;
       try {
         fetch(CFG.API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo), keepalive: true })
@@ -69,11 +69,11 @@
   function pedirIdentidad(destino, despues) {
     if (S.nombre && (DEMO || (S.email && S.permiso))) { if (!S.id) { S.id = nuevoId(); guardar(); } despues(); return; }
     destino.innerHTML =
-      '<div class="card centro"><h2>Antes de empezar</h2><p class="suave">Con esto guardamos tu avance y Emi te acompaña con un análisis de tus números al final.</p>' +
+      '<div class="card centro"><h2>Antes de empezar</h2><p class="suave">Con esto guardamos tu avance. Al terminar cada día, Emi te deja una mirada a tus números y una pregunta.</p>' +
       '<label for="id-nombre">¿Cómo te llamas?</label><input type="text" id="id-nombre" autocomplete="given-name" value="' + esc(S.nombre) + '">' +
       '<label for="id-email">Tu correo</label><input type="email" id="id-email" autocomplete="email" value="' + esc(S.email || "") + '">' +
-      '<label for="id-wa">Tu WhatsApp</label><input type="tel" id="id-wa" autocomplete="tel" placeholder="Con indicativo, ej. +57 300…" value="' + esc(S.wa || "") + '">' +
-      '<label class="check"><input type="checkbox" id="id-ok"' + (S.permiso ? " checked" : "") + '><span>Acepto que Feminario guarde lo que escribo aquí para acompañarme (el equipo y Emi lo ven; nadie más).</span></label>' +
+      '<label for="id-wa">Tu WhatsApp</label><input type="tel" id="id-wa" autocomplete="tel" placeholder="+57 300 000 0000" value="' + esc(S.wa || "") + '">' +
+      '<label class="check" for="id-ok"><input type="checkbox" id="id-ok"' + (S.permiso ? " checked" : "") + '><span>Acepto que Feminario guarde lo que escribo aquí para acompañarme (solo lo ve el equipo de Feminario).</span></label>' +
       '<div class="error" id="id-err"></div><button class="btn" id="id-go">Empezar</button></div>';
     destino.querySelector("#id-go").onclick = function () {
       var n = destino.querySelector("#id-nombre").value.trim(), em = destino.querySelector("#id-email").value.trim(), wa = destino.querySelector("#id-wa").value.trim(), ok = destino.querySelector("#id-ok").checked, err = destino.querySelector("#id-err");
@@ -301,8 +301,8 @@
         S.listo[n] = true; guardar(); sincronizar(true); confeti({ n: n === total() ? 260 : 110 }); window.scrollTo(0, 0);
         var msgs = ["Tus metas ya tienen nombre y número.", "Verlas escritas pesa menos que imaginarlas.", "Diste un paso con tu plata.", "Le dejaste una promesa a tu yo del futuro.", "Compartir lo aprendido lo fija."];
         raiz.innerHTML = (n === total() && hechos() === total() ? gracias() :
-          '<div class="card centro fin-dia">' + ESTRELLA + "<h2>¡Lo hiciste, " + esc(S.nombre) + "!</h2><p>" + msgs[n - 1] + '</p><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>') + tarjetaEmi(n, "emi-dia");
-        esperarEmi(n, "emi-dia");
+          '<div class="card centro fin-dia">' + ESTRELLA + "<h2>¡Lo hiciste, " + esc(S.nombre) + "!</h2><p>" + msgs[n - 1] + '</p><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>') + '<div id="emi-zona"></div>';
+        mostrarEmi(n, raiz.querySelector("#emi-zona"));
       };
     });
   }
@@ -322,7 +322,8 @@
   /* ───────── portada: el camino ───────── */
   function pagPortada() {
     var raiz = document.getElementById("app");
-    if (DEMO) raiz.insertAdjacentHTML("afterbegin", bandaDemo());
+    if (!(S.nombre && (DEMO || (S.email && S.permiso)))) { pedirIdentidad(raiz.querySelector("#identidad"), pagPortada); return; }   // el camino aparece solo después de dejar sus datos
+    if (DEMO && !raiz.querySelector(".demo-banda")) raiz.insertAdjacentHTML("afterbegin", bandaDemo());
     pedirIdentidad(raiz.querySelector("#identidad"), function () {
       var ok = hechos();
       raiz.querySelector("#identidad").innerHTML =
@@ -380,7 +381,7 @@
   /* ───────── PDF con todo lo que ha hecho ───────── */
   function filasPDF(titulo, id, b) {
     var fs = filasDe(id).filter(function (f) { return f.c || toNum(f.a) || f.n; }); if (!fs.length) return "";
-    return '<div class="r-item"><div class="r-q">' + esc(titulo) + "</div>" + fs.map(function (f) { return '<div class="plan-fila"><span>' + esc([f.c, f.n].filter(Boolean).join(" · ") || "—") + "</span><strong>" + [f.a ? cop(toNum(f.a)) : "", f.b ? (b.cols[2] ? esc(b.cols[2].l) + " " : "") + (/^\d{4}-\d{2}$/.test(f.b) ? esc(fmtFecha(f.b)) : isNaN(toNum(f.b)) || /[a-zA-Z]/.test(f.b) ? esc(f.b) : cop(toNum(f.b))) : ""].filter(Boolean).join(" · ") + "</strong></div>"; }).join("") + "</div>";
+    return '<div class="r-item"><div class="r-q">' + esc(titulo) + "</div>" + fs.map(function (f) { return '<div class="plan-fila"><span>' + esc([f.c, f.n].filter(Boolean).join(" · ") || "—") + "</span><strong>" + [f.a ? cop(toNum(f.a)) : "", f.b ? (b.cols[2] && b.cols[2].fecha ? "para " : "") + (/^\d{4}-\d{2}$/.test(f.b) ? esc(fmtFecha(f.b)) : isNaN(toNum(f.b)) || /[a-zA-Z]/.test(f.b) ? esc(f.b) : cop(toNum(f.b))) : ""].filter(Boolean).join(" · ") + "</strong></div>"; }).join("") + "</div>";
   }
   function balPDF(b) {
     var xs = itemsDe(b.id).filter(function (x) { return toNum(x.v) || x.n; }); if (!xs.length) return "";
@@ -404,33 +405,92 @@
     if (!partes.length) return "";
     return '<section class="r-dia"><div class="r-dia-h"><span>Día ' + d.n + "</span> " + esc(d.titulo) + "</div>" + partes.join("") + "</section>";
   }
-  // Análisis de Emi: uno corto por cada día completado (lo escribe Emi y también le llega por WhatsApp)
-  function textoDia(n) { var d = S.insights && S.insights.dias && S.insights.dias[n]; return d && d.texto ? d.texto : ""; }
-  function ejemploDemo(n) {
-    var ing = sumaV("d1_ing"), aho = sumaV("d1_ahorros"), gas = sumaV("d2_gastos"), cuo = sumaV("d2_deudas", function (x) { return toNum(x.cuota); }), inv = sumaV("d3_activos");
-    if (n === 1 && ing) return "Te entran " + cop(ing) + " al mes" + (aho ? " y tu ahorro equivale a " + (Math.round(aho / ing * 10) / 10) + " meses de ese ingreso" : "") + ". (Ejemplo: aquí Emi cruza tus datos con tu meta.)";
-    if (n === 2 && gas) return "Tus gastos son el " + Math.round(gas / (ing || gas) * 100) + " % de lo que te entra" + (cuo && ing ? " y las cuotas el " + Math.round(cuo / ing * 100) + " %" : "") + ". (Ejemplo de cómo se verá el análisis de Emi.)";
-    if (n === 3 && inv) return "Tienes " + cop(inv) + " invertidos. (Ejemplo: aquí Emi mira si están repartidos y cuánto aportas.)";
-    return "Aquí Emi te cuenta lo que vio en lo que escribiste hoy. (Ejemplo del modo demo.)";
+  /* ───────── Emi: un insight y una pregunta por día ─────────
+     No es un chat: ella no le escribe a Emi. Emi lee SUS números y SUS metas, le deja un insight y una pregunta, y ella puede dejar una respuesta escrita
+     que queda guardada para el equipo (Emi no contesta aquí). Todo se arma al instante en el dispositivo, sin esperas. */
+  var MES_L = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  function mesesHasta(para) { var m = /^(\d{4})-(\d{2})$/.exec(para || ""); if (!m) return null; var h = new Date(); return Math.max(1, (+m[1] - h.getFullYear()) * 12 + (+m[2] - (h.getMonth() + 1))); }
+  function fechaLarga(para) { var m = /^(\d{4})-(\d{2})$/.exec(para || ""); return m ? MES_L[+m[2] - 1] + " " + m[1] : ""; }
+  function corto(t, n) { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, "") + "…" : t; }
+  function datosEmi() {
+    var ing = sumaV("d1_ing"), vr = sumaV("d1_ing", function (x) { return x.t === "var" ? toNum(x.v) : 0; }), aho = sumaV("d1_ahorros");
+    var gas = sumaV("d2_gastos"), gv = sumaV("d2_gastos", function (x) { return x.t === "var" ? toNum(x.v) : 0; }), cuo = sumaV("d2_deudas", function (x) { return toNum(x.cuota); });
+    var libre = ing ? ing - gas - cuo : null;
+    var metas = filasDe("d1_metas").filter(function (f) { return f.c || f.n || toNum(f.a); }).map(function (f) { return { nombre: f.n || f.c || "tu meta", costo: toNum(f.a), para: f.b || "", mh: mesesHasta(f.b) }; });
+    var total = metas.reduce(function (t, m) { return t + m.costo; }, 0), falta = Math.max(0, total - aho), mhMax = metas.reduce(function (t, m) { return Math.max(t, m.mh || 0); }, 0);
+    var completas = metas.length && metas.every(function (m) { return m.costo && m.para; });
+    return { ing: ing, vr: vr, aho: aho, gas: gas, gv: gv, cuo: cuo, libre: libre, metas: metas, completas: completas, necesita: completas && mhMax ? Math.ceil(falta / mhMax) : null };
   }
-  function tarjetaEmi(n, id) {
-    var t = textoDia(n) || (DEMO ? ejemploDemo(n) : "");
-    return '<div class="card emi-analisis" id="' + id + '"><div class="res-label">Emi vio esto en tus números</div>' + (t ? '<div class="emi-txt">' + esc(t) + "</div>" : '<p class="centro suave emi-esp" style="margin:0">Emi está leyendo lo que escribiste hoy… en un momento aparece aquí y te llega por WhatsApp 💜</p>') + "</div>";
+  function insightDia(n) {
+    var d = datosEmi(), m = d.metas[0], varios = d.metas.length > 1, nec = d.necesita, t, q;
+    var cual = varios ? "tus " + d.metas.length + " metas" : (m ? "«" + m.nombre + "»" : "");
+    if (n === 1) {
+      if (!d.metas.length) { t = "Hoy pusiste tus números, pero falta lo más importante: hacia dónde va esa plata. Sin una meta con costo y fecha es difícil saber si alcanza."; q = "¿Qué es lo primero que quisieras lograr con tu plata el próximo año?"; }
+      else if (!d.completas) { t = "Tu meta " + cual + " ya tiene nombre, pero le falta " + (d.metas.some(function (x) { return !x.costo; }) ? "el costo" : "la fecha") + ": con eso te puedo decir cuánto necesitas apartar cada mes."; q = "¿Para cuándo la quieres y cuánto crees que cuesta?"; }
+      else {
+        t = (varios ? "Tus " + d.metas.length + " metas juntas piden apartar cerca de " : "Para llegar a " + cual + " en " + fechaLarga(m.para) + " necesitas apartar cerca de ") + cop(nec) + " al mes" + (d.ing ? ", el " + Math.round(nec / d.ing * 100) + " % de lo que te entra" : "") + (varios ? " si quieres llegar a todas a tiempo" : "") + ".";
+        if (d.ing && d.vr / d.ing >= 0.3) t += " Ojo: el " + Math.round(d.vr / d.ing * 100) + " % de tu ingreso es variable, así que conviene contar con el mes más flojo.";
+        q = varios ? "Si no alcanza para todas a la vez, ¿cuál es la que no quieres que espere?" : "¿Qué parte de tu mes estás dispuesta a dejar solo para esta meta?";
+      }
+    } else if (n === 2) {
+      var sorp = String(getV("d2_sorpresa") || "").trim(), pctCuo = d.ing ? Math.round(d.cuo / d.ing * 100) : 0;
+      if (d.libre !== null && d.libre <= 0) { t = "Tus gastos y cuotas ya se llevan todo lo que te entra: hoy no queda plata libre para tus metas."; q = "¿Qué gasto sientes que podrías mover sin sufrir?"; }
+      else if (d.libre !== null && nec) {
+        if (d.libre >= nec) { t = "Después de gastos y cuotas te quedan libres cerca de " + cop(d.libre) + " al mes y " + cual + " piden " + cop(nec) + ": sí alcanza, si esa plata de verdad llega a su destino."; q = "¿A dónde se va hoy esa plata que te queda libre?"; }
+        else { t = cual.charAt(0).toUpperCase() + cual.slice(1) + " piden " + cop(nec) + " al mes y, después de gastos y cuotas, te quedan libres " + cop(d.libre) + ": hay una brecha de " + cop(nec - d.libre) + "."; q = "¿Qué gasto moverías, o qué meta cambiarías de fecha, para cerrar esa brecha?"; }
+      } else if (d.libre !== null) { t = "Después de gastos y cuotas te quedan libres cerca de " + cop(d.libre) + " al mes."; q = "¿Para qué te gustaría que fuera esa plata?"; }
+      else { t = "Ya está todo junto en un solo lugar: eso es lo que casi nadie hace."; q = "¿Qué número te incomodó más al verlo?"; }
+      if (pctCuo >= 30) { t = "Las cuotas se llevan el " + pctCuo + " % de lo que te entra, y eso es lo que más pesa sobre tus metas. " + t; q = "¿Qué deuda quisieras terminar primero?"; }
+      if (sorp) q = "Dijiste que te sorprendió: «" + corto(sorp, 80) + "». ¿Qué harías distinto este mes con eso?";
+    } else if (n === 3) {
+      var camino = getV("d3_camino"), inv = sumaV("d3_activos"), aporte = sumaV("d3_aportes") || toNum(getV("d3_aporte"));
+      if (camino === "no") {
+        if (aporte) { var fv = Math.round(aporte * ((Math.pow(1 + 0.08 / 12, 120) - 1) / (0.08 / 12))); t = "Apartar " + cop(aporte) + " al mes durante 10 años sumaría cerca de " + cop(fv) + " a un 8 % anual (un supuesto educativo, no una promesa)." + (nec ? " Tus metas piden cerca de " + cop(nec) + " al mes." : ""); q = cual ? "¿Eso te acerca a " + cual + " o necesitas más?" : "¿Para qué te gustaría que trabajara esa plata?"; }
+        else { t = "Empezar no tiene que ser grande: lo importante es que el primer aporte sea automático."; q = "¿Cuánto podrías apartar cada mes sin que se note en tu mes?"; }
+      } else if (inv) {
+        var por = {}; itemsDe("d3_activos").forEach(function (x) { if (!toNum(x.v)) return; var k = x.tj !== undefined && x.tj !== "" ? window.TIPOS_INV[+x.tj] : "Sin tipo"; por[k] = (por[k] || 0) + toNum(x.v); });
+        var ks = Object.keys(por).sort(function (a, b) { return por[b] - por[a]; }), conc = Math.round(por[ks[0]] / inv * 100);
+        if (conc >= 70) { t = "El " + conc + " % de lo que inviertes está en " + ks[0].toLowerCase() + ": si eso se mueve, se mueve casi todo tu portafolio."; q = cual ? "¿Esta plata es para " + cual + " o para otra cosa?" : "¿Para qué la tienes invertida?"; }
+        else { t = "Tienes tu plata repartida en " + ks.length + " tipos de inversión: eso baja el riesgo."; q = cual ? "¿Cuál de estas inversiones sostiene " + cual + "?" : "¿Esta plata está pensada para alguna meta?"; }
+      } else { t = "Todavía no pusiste inversiones ni un aporte posible, y está bien: es un punto de partida."; q = "¿Qué te frena hoy para empezar a invertir?"; }
+    } else if (n === 4) {
+      var carta = String(getV("d4_carta") || "").trim(), fr = corto(carta.split(/(?<=[.!?])\s+/)[0] || carta, 110);
+      t = carta ? "Una frase de tu carta se me quedó: «" + fr + "». Es una promesa que puedes releer en diciembre de 2027." + (cual ? " Y se conecta con " + cual + "." : "") : "Todavía no escribiste tu carta: es la forma más bonita de ponerle fecha a tus metas.";
+      q = "¿Cuál es la primera cosa de esa carta que harías en enero?";
+    } else {
+      var para = String(getV("d5_para") || "").trim();
+      t = "En cinco días pusiste tus ingresos, tus deudas, tu plata y tus sueños en un solo lugar." + (nec && d.libre ? " Lo que te llevas: tus metas piden cerca de " + cop(nec) + " al mes y hoy te quedan libres " + cop(d.libre) + "." : "") + (para ? " Gracias por escribirle a " + para + "." : "");
+      q = "¿Cuál será tu primer paso en enero?";
+    }
+    return { t: t, q: q };
   }
-  function esperarEmi(n, id) {
-    if (DEMO || !CFG.API || textoDia(n)) return;
-    var intentos = 0, t = setInterval(function () {
-      var el = document.getElementById(id); if (!el || ++intentos > 40) { clearInterval(t); return; }
-      fetch(CFG.API + "?id=" + encodeURIComponent(S.id), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
-        if (j && j.insights) { S.insights = j.insights; try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
-        if (textoDia(n)) { clearInterval(t); el.innerHTML = '<div class="res-label">Emi vio esto en tus números</div><div class="emi-txt">' + esc(textoDia(n)) + "</div>"; }
-      }).catch(function () {});
-    }, 8000);
+  function mostrarEmi(n, zona) {
+    S.emi = S.emi || {}; var previa = S.emi[n] || {}, ins = insightDia(n);
+    S.emi[n] = { t: ins.t, q: ins.q, r: previa.r || "" }; guardar();
+    var rapido = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var av = '<img class="emi-av" src="assets/favicon.png" alt="">';
+    zona.innerHTML = '<div class="emi-chat"><div class="emi-fila">' + av + '<div class="emi-col"><small>Emi</small><div class="burbuja" data-b1></div></div></div></div>';
+    var chat = zona.querySelector(".emi-chat"), b1 = zona.querySelector("[data-b1]");
+    function puntos(el) { el.className = "burbuja escribiendo"; el.innerHTML = "<i></i><i></i><i></i>"; }
+    function texto(el, t) { el.className = "burbuja"; el.textContent = t; }
+    function cierre() {
+      var box = document.createElement("div"); box.className = "emi-resp";
+      box.innerHTML = '<label for="emi-r">Tu respuesta <span class="suave">(opcional)</span></label><textarea id="emi-r" placeholder="Escríbela aquí, como te salga.">' + esc(S.emi[n].r) + '</textarea><button class="btn secundario chico" type="button" id="emi-g">Guardar mi respuesta</button><p class="suave emi-nota">Emi no contesta por aquí: tu respuesta la lee el equipo de Feminario para acompañarte mejor.</p>';
+      chat.appendChild(box);
+      box.querySelector("#emi-g").onclick = function () { S.emi[n].r = box.querySelector("#emi-r").value.trim().slice(0, 1000); guardar(); sincronizar(true); this.textContent = "Guardada ✓"; };
+    }
+    function segunda() {
+      var f = document.createElement("div"); f.className = "emi-fila"; f.innerHTML = av + '<div class="emi-col"><div class="burbuja escribiendo"><i></i><i></i><i></i></div></div>'; chat.appendChild(f);
+      var b2 = f.querySelector(".burbuja");
+      setTimeout(function () { texto(b2, S.emi[n].q); b2.classList.add("pregunta"); setTimeout(cierre, rapido ? 0 : 500); }, rapido ? 0 : 1100);
+    }
+    if (rapido) { texto(b1, S.emi[n].t); segunda(); return; }
+    puntos(b1); setTimeout(function () { texto(b1, S.emi[n].t); setTimeout(segunda, 900); }, 1300);
   }
   function analisisEmi() {
     var out = "";
-    for (var n = 1; n <= 5; n++) { var t = textoDia(n); if (t) out += '<div class="r-item"><div class="r-q">Día ' + n + " · lo que vio Emi</div><div class=\"r-a\">" + esc(t) + "</div></div>"; }
-    return out ? '<div class="card emi-analisis"><div class="res-label">El análisis de Emi</div>' + out + "</div>" : "";
+    for (var n = 1; n <= 5; n++) { var e = S.emi && S.emi[n]; if (e && e.t) out += '<div class="r-item"><div class="r-q">Día ' + n + " · Emi vio esto</div><div class=\"r-a\">" + esc(e.t) + "<br><br><em>" + esc(e.q) + "</em>" + (e.r ? "<br><br><strong>Mi respuesta:</strong> " + esc(e.r) : "") + "</div></div>"; }
+    return out ? '<div class="card emi-analisis"><div class="res-label">Lo que vio Emi</div>' + out + "</div>" : "";
   }
   function pagResumen() {
     var raiz = document.getElementById("app");
