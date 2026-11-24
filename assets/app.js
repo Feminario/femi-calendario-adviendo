@@ -306,7 +306,7 @@
       h += "<" + tag + href + ' class="' + cls + '" data-n="' + d.n + '" style="top:' + it.y + "px;--c:" + window.ACTOS[d.acto - 1].color + ";--k:" + k + '">' +
         '<span class="nodo">' + (hecho ? '<svg viewBox="0 0 24 24" class="ok"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#5E9E6E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<img src="assets/' + d.img + '" alt="">' + (ab ? "" : CANDADO)) + '<i class="n">' + d.n + "</i></span>" +
         '<span class="rotulo"><b>' + esc(d.titulo) + "</b><small>" + (ab ? (hecho ? "Completado" : (actual ? "Te toca hoy" : "Abierta")) : "Se abre el " + fechaTxt(d.n)) + "</small></span>" +
-        (actual ? '<em class="aqui">¡Aquí estás!</em>' : "") + "</" + tag + ">";
+        "</" + tag + ">";
     });
     h += '<a class="meta-final" href="resumen.html' + pre() + '" style="top:' + (y + 6) + 'px"><img src="assets/st-poder.png" alt=""><b>Mi Wrapped financiero</b><small>Todo tu camino en una hoja</small></a></div>';
     cont.innerHTML = h;
