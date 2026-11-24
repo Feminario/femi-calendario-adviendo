@@ -41,7 +41,7 @@
     } catch (e) { fin(); }
   }
   function nuevoId() { var t = "c"; for (var i = 0; i < 14; i++) t += "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36)); return t; }
-  function setV(k, val) { S.v[k] = val; guardar(); }
+  function setV(k, val) { S.v[k] = val; guardar(); adelantarIA(); }
   function getV(k) { return S.v[k]; }
 
   /* ───────── utilidades ───────── */
@@ -289,6 +289,7 @@
     document.title = d.titulo + " · Adviento Feminario";
     if (!abierto(n)) { raiz.innerHTML = '<div class="card centro"><div class="puerta-cerrada">' + CANDADO + '</div><h2>Esta puerta se abre el ' + fechaTxt(n) + '</h2><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>'; return; }
     pedirIdentidad(raiz, function () {
+      DIA_ACT = n;
       raiz.innerHTML =
         bandaDemo() + '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + n + "/" + total() + "</span></div>" +
         '<div class="dia-head"><img class="dia-img" src="assets/' + d.img + '" alt=""><h1>' + esc(d.titulo) + "</h1></div>" +
@@ -444,6 +445,14 @@
     return h;
   }
   // La IA solo redacta el análisis: si no responde (o no pasa los filtros del servidor) en 5 segundos, se queda el texto calculado
+  // Se adelanta mientras ella escribe: cuando se detiene 2 s, la IA ya empieza a pensar; al tocar «Completar» el análisis casi siempre ya está listo
+  var DIA_ACT = 0, cacheIA = {}, tPre = null, nPre = 0;
+  function clavePre(n) { return n + "|" + JSON.stringify(hechosDia(n)); }
+  function adelantarIA() {
+    if (!DIA_ACT || !CFG.API || nPre >= 4) return;
+    clearTimeout(tPre);
+    tPre = setTimeout(function () { var n = DIA_ACT, k = clavePre(n); if (!cacheIA[k]) { nPre++; cacheIA[k] = iaDia(n); } }, 2000);
+  }
   function iaDia(n) {
     return new Promise(function (res) {
       var listo = false, t = setTimeout(function () { if (!listo) { listo = true; res(null); } }, 5000);
@@ -516,7 +525,10 @@
     if (rapido) { texto(b1); cierre(); return; }
     puntos(b1);
     var espera = new Promise(function (ok) { setTimeout(ok, 1400); });
-    Promise.all([CFG.API ? iaDia(n) : Promise.resolve(null), espera]).then(function (r) {
+    var kIA = clavePre(n), listaIA = !!cacheIA[kIA];
+    var pIA = CFG.API ? (cacheIA[kIA] || (cacheIA[kIA] = iaDia(n))) : Promise.resolve(null);
+    if (listaIA) espera = new Promise(function (ok) { setTimeout(ok, 600); });   // ya venía adelantado: casi sin esperar
+    Promise.all([pIA, espera]).then(function (r) {
       if (r[0]) { S.emi[n].t = r[0].t; S.emi[n].q = r[0].q; S.emi[n].ia = true; guardar(); sincronizar(true); }
       texto(b1); setTimeout(cierre, 500);
     });
