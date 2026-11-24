@@ -280,3 +280,4 @@ h1,h2,h3,.bloque h3,.card h2,.dia-head h1{ text-align:center; }
 .card label.check input{ appearance:auto; flex:none; width:20px; height:20px; margin:2px 0 0; accent-color:var(--morado); padding:0; }
 #identidad .card input[type=email], #identidad .card input[type=tel], #identidad .card input[type=text]{ width:100%; box-sizing:border-box; }
 .plan-fila{ flex-wrap:wrap; } .plan-fila strong{ white-space:normal !important; max-width:100%; text-align:right; margin-left:auto; overflow-wrap:anywhere; }
+.burbuja .emi-q{ margin-top:10px; padding-top:10px; border-top:1px dashed rgba(126,132,174,.35); font-weight:700; color:var(--morado-oscuro); }

@@ -438,7 +438,7 @@
       else if (d.libre !== null && nec) {
         if (d.libre >= nec) { t = "Después de gastos y cuotas te quedan libres cerca de " + cop(d.libre) + " al mes y " + cual + " piden " + cop(nec) + ": sí alcanza, si esa plata de verdad llega a su destino."; q = "¿A dónde se va hoy esa plata que te queda libre?"; }
         else { t = cual.charAt(0).toUpperCase() + cual.slice(1) + " piden " + cop(nec) + " al mes y, después de gastos y cuotas, te quedan libres " + cop(d.libre) + ": hay una brecha de " + cop(nec - d.libre) + "."; q = "¿Qué gasto moverías, o qué meta cambiarías de fecha, para cerrar esa brecha?"; }
-      } else if (d.libre !== null) { t = "Después de gastos y cuotas te quedan libres cerca de " + cop(d.libre) + " al mes."; q = "¿Para qué te gustaría que fuera esa plata?"; }
+      } else if (d.libre !== null) { t = "Después de gastos y cuotas te quedan libres cerca de " + cop(d.libre) + " al mes, pero como aún no hay metas con costo y fecha no puedo decirte si eso alcanza para lo que quieres."; q = "¿Qué te gustaría lograr con esa plata?"; }
       else { t = "Ya está todo junto en un solo lugar: eso es lo que casi nadie hace."; q = "¿Qué número te incomodó más al verlo?"; }
       if (pctCuo >= 30) { t = "Las cuotas se llevan el " + pctCuo + " % de lo que te entra, y eso es lo que más pesa sobre tus metas. " + t; q = "¿Qué deuda quisieras terminar primero?"; }
       if (sorp) q = "Dijiste que te sorprendió: «" + corto(sorp, 80) + "». ¿Qué harías distinto este mes con eso?";
@@ -472,20 +472,15 @@
     zona.innerHTML = '<div class="emi-chat"><div class="emi-fila">' + av + '<div class="emi-col"><small>Emi</small><div class="burbuja" data-b1></div></div></div></div>';
     var chat = zona.querySelector(".emi-chat"), b1 = zona.querySelector("[data-b1]");
     function puntos(el) { el.className = "burbuja escribiendo"; el.innerHTML = "<i></i><i></i><i></i>"; }
-    function texto(el, t) { el.className = "burbuja"; el.textContent = t; }
+    function texto(el) { el.className = "burbuja"; el.innerHTML = esc(S.emi[n].t) + '<div class="emi-q">' + esc(S.emi[n].q) + "</div>"; }
     function cierre() {
       var box = document.createElement("div"); box.className = "emi-resp";
       box.innerHTML = '<label for="emi-r">Tu respuesta <span class="suave">(opcional)</span></label><textarea id="emi-r" placeholder="Escríbela aquí, como te salga.">' + esc(S.emi[n].r) + '</textarea><button class="btn secundario chico" type="button" id="emi-g">Guardar mi respuesta</button><p class="suave emi-nota">Emi no contesta por aquí: tu respuesta la lee el equipo de Feminario para acompañarte mejor.</p>';
       chat.appendChild(box);
       box.querySelector("#emi-g").onclick = function () { S.emi[n].r = box.querySelector("#emi-r").value.trim().slice(0, 1000); guardar(); sincronizar(true); this.textContent = "Guardada ✓"; };
     }
-    function segunda() {
-      var f = document.createElement("div"); f.className = "emi-fila"; f.innerHTML = av + '<div class="emi-col"><div class="burbuja escribiendo"><i></i><i></i><i></i></div></div>'; chat.appendChild(f);
-      var b2 = f.querySelector(".burbuja");
-      setTimeout(function () { texto(b2, S.emi[n].q); b2.classList.add("pregunta"); setTimeout(cierre, rapido ? 0 : 500); }, rapido ? 0 : 1100);
-    }
-    if (rapido) { texto(b1, S.emi[n].t); segunda(); return; }
-    puntos(b1); setTimeout(function () { texto(b1, S.emi[n].t); setTimeout(segunda, 900); }, 1300);
+    if (rapido) { texto(b1); cierre(); return; }
+    puntos(b1); setTimeout(function () { texto(b1); setTimeout(cierre, 500); }, 1400);
   }
   function analisisEmi() {
     var out = "";
