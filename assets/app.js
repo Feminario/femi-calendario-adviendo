@@ -278,7 +278,7 @@
 
   /* ───────── gracias final ───────── */
   function gracias() {
-    return '<div class="gracias"><img src="assets/fundadoras.jpg" alt="Andre y Tina"><h2>Gracias por recorrer este camino con nosotras</h2><p>Terminaste los cinco días: ahora sabes dónde estás y hacia dónde vas. Cada paso que diste cuenta, y no vas sola.</p><p class="firma">Andre y Tina</p><a class="btn" href="resumen.html' + pre() + '">Ver mi Wrapped financiero</a></div>';
+    return '<div class="gracias"><img src="assets/fundadoras.jpg" alt="Andre y Tina"><h2>Gracias por recorrer este camino con nosotras</h2><p>Terminaste los cinco días: ahora sabes dónde estás y hacia dónde vas. Cada paso que diste cuenta, y no vas sola.</p><p class="firma">Andre y Tina</p><a class="btn" href="resumen.html' + pre() + '">Ver mi Wrapped financiero</a></div>' + nubes();
   }
 
   /* ───────── página de un día ───────── */
@@ -419,7 +419,40 @@
     var metas = filasDe("d1_metas").filter(function (f) { return f.c || f.n || toNum(f.a); }).map(function (f) { return { nombre: f.n || f.c || "tu meta", costo: toNum(f.a), para: f.b || "", mh: mesesHasta(f.b) }; });
     var total = metas.reduce(function (t, m) { return t + m.costo; }, 0), falta = Math.max(0, total - aho), mhMax = metas.reduce(function (t, m) { return Math.max(t, m.mh || 0); }, 0);
     var completas = metas.length && metas.every(function (m) { return m.costo && m.para; });
-    return { ing: ing, vr: vr, aho: aho, gas: gas, gv: gv, cuo: cuo, libre: libre, metas: metas, completas: completas, necesita: completas && mhMax ? Math.ceil(falta / mhMax) : null };
+    return { ing: ing, vr: vr, aho: aho, gas: gas, gv: gv, cuo: cuo, libre: libre, metas: metas, completas: completas, necesita: completas && mhMax ? Math.ceil(falta / mhMax) : null,
+      colchon: gas && aho ? Math.round(aho / gas * 10) / 10 : null, faltaColchon: gas ? Math.max(0, 3 * gas - aho) : null };
+  }
+  // Los HECHOS que se le pasan a la IA (solo cifras y metas: nunca nombre, correo ni teléfono)
+  function hechosDia(n) {
+    var d = datosEmi(), h = {
+      ingreso_mensual: d.ing || null, ingreso_variable_pct: d.ing ? Math.round(d.vr / d.ing * 100) : null, ahorrado: d.aho || null, gasto_mensual: d.gas || null,
+      gasto_variable_pct: d.gas ? Math.round(d.gv / d.gas * 100) : null, cuotas_al_mes: d.cuo || null, cuotas_pct_del_ingreso: d.ing && d.cuo ? Math.round(d.cuo / d.ing * 100) : null,
+      le_queda_libre_al_mes: d.libre, ahorro_cubre_meses_de_gasto: d.colchon, le_faltan_para_3_meses_de_colchon: d.faltaColchon || null, necesita_apartar_al_mes_para_todas_sus_metas: d.necesita,
+      sus_metas: d.metas.slice(0, 3).map(function (m) { return { meta: m.nombre, cuesta: m.costo || null, para_cuando: fechaLarga(m.para) || null, meses_hasta_esa_fecha: m.mh, necesitaria_apartar_al_mes_si_fuera_la_unica: m.costo && m.mh ? Math.ceil(Math.max(0, m.costo - d.aho) / m.mh) : null }; })
+    };
+    if (n === 2) h.lo_que_le_sorprendio = String(getV("d2_sorpresa") || "").trim().slice(0, 200) || null;
+    if (n === 3) {
+      var inv = sumaV("d3_activos"), aporte = sumaV("d3_aportes") || toNum(getV("d3_aporte")), por = {};
+      itemsDe("d3_activos").forEach(function (x) { if (!toNum(x.v)) return; var k = x.tj !== undefined && x.tj !== "" ? window.TIPOS_INV[+x.tj] : "Sin tipo"; por[k] = (por[k] || 0) + toNum(x.v); });
+      var ks = Object.keys(por).sort(function (a, b) { return por[b] - por[a]; });
+      h.camino = getV("d3_camino") === "si" ? "ya invierte" : getV("d3_camino") === "no" ? "nunca ha invertido" : null; h.invertido = inv || null; h.inversion_principal = ks[0] || null; h.concentracion_pct = inv && ks[0] ? Math.round(por[ks[0]] / inv * 100) : null;
+      h.aporte_mensual = aporte || null; h.aporte_pct_del_ingreso = d.ing && aporte ? Math.round(aporte / d.ing * 100) : null;
+      h.si_aporta_10_anios_al_8_pct_anual = aporte ? Math.round(aporte * ((Math.pow(1 + 0.08 / 12, 120) - 1) / (0.08 / 12))) : null;
+    }
+    if (n === 4) h.carta_a_su_yo_de_2027 = String(getV("d4_carta") || "").trim().slice(0, 500) || null;
+    if (n === 5) h.escribio_carta_de_gratitud = !!String(getV("d5_carta") || "").trim();
+    return h;
+  }
+  // La IA solo redacta el análisis: si no responde (o no pasa los filtros del servidor) en 5 segundos, se queda el texto calculado
+  function iaDia(n) {
+    return new Promise(function (res) {
+      var listo = false, t = setTimeout(function () { if (!listo) { listo = true; res(null); } }, 5000);
+      function fin(v) { if (listo) return; listo = true; clearTimeout(t); res(v); }
+      try {
+        fetch(CFG.API + "/insight", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dia: n, hechos: hechosDia(n) }) })
+          .then(function (r) { return r.json(); }).then(function (j) { fin(j && j.ok && j.t && j.q ? { t: j.t, q: j.q } : null); }).catch(function () { fin(null); });
+      } catch (e) { fin(null); }
+    });
   }
   function insightDia(n) {
     var d = datosEmi(), m = d.metas[0], varios = d.metas.length > 1, nec = d.necesita, t, q;
@@ -440,6 +473,7 @@
         else { t = cual.charAt(0).toUpperCase() + cual.slice(1) + " piden " + cop(nec) + " al mes y, después de gastos y cuotas, te quedan libres " + cop(d.libre) + ": hay una brecha de " + cop(nec - d.libre) + "."; q = "¿Qué gasto moverías, o qué meta cambiarías de fecha, para cerrar esa brecha?"; }
       } else if (d.libre !== null) { t = "Después de gastos y cuotas te quedan libres cerca de " + cop(d.libre) + " al mes, pero como aún no hay metas con costo y fecha no puedo decirte si eso alcanza para lo que quieres."; q = "¿Qué te gustaría lograr con esa plata?"; }
       else { t = "Ya está todo junto en un solo lugar: eso es lo que casi nadie hace."; q = "¿Qué número te incomodó más al verlo?"; }
+      if (d.colchon !== null && d.colchon < 3 && d.libre !== null && d.libre > 0) t += " Tu ahorro cubre " + String(d.colchon).replace(".", ",") + " meses de gasto; lo sano son 3.";
       if (pctCuo >= 30) { t = "Las cuotas se llevan el " + pctCuo + " % de lo que te entra, y eso es lo que más pesa sobre tus metas. " + t; q = "¿Qué deuda quisieras terminar primero?"; }
       if (sorp) q = "Dijiste que te sorprendió: «" + corto(sorp, 80) + "». ¿Qué harías distinto este mes con eso?";
     } else if (n === 3) {
@@ -475,16 +509,26 @@
     function texto(el) { el.className = "burbuja"; el.innerHTML = esc(S.emi[n].t) + '<div class="emi-q">' + esc(S.emi[n].q) + "</div>"; }
     function cierre() {
       var box = document.createElement("div"); box.className = "emi-resp";
-      box.innerHTML = '<label for="emi-r">Tu respuesta <span class="suave">(opcional)</span></label><textarea id="emi-r" placeholder="Escríbela aquí, como te salga.">' + esc(S.emi[n].r) + '</textarea><button class="btn secundario chico" type="button" id="emi-g">Guardar mi respuesta</button><p class="suave emi-nota">Emi no contesta por aquí: tu respuesta la lee el equipo de Feminario para acompañarte mejor.</p>';
+      box.innerHTML = '<label for="emi-r">Nota mental <span class="suave">(opcional)</span></label><textarea id="emi-r" placeholder="Una idea, una decisión o lo que quieras recordar de esto.">' + esc(S.emi[n].r) + '</textarea><button class="btn secundario chico" type="button" id="emi-g">Guardar nota mental</button><p class="suave emi-nota">Es tuya: queda en tu Wrapped como una nubecita y la lee el equipo de Feminario para acompañarte.</p>';
       chat.appendChild(box);
-      box.querySelector("#emi-g").onclick = function () { S.emi[n].r = box.querySelector("#emi-r").value.trim().slice(0, 1000); guardar(); sincronizar(true); this.textContent = "Guardada ✓"; };
+      box.querySelector("#emi-g").onclick = function () { S.emi[n].r = box.querySelector("#emi-r").value.trim().slice(0, 1000); guardar(); sincronizar(true); this.textContent = "Anotada ✓"; };
     }
     if (rapido) { texto(b1); cierre(); return; }
-    puntos(b1); setTimeout(function () { texto(b1); setTimeout(cierre, 500); }, 1400);
+    puntos(b1);
+    var espera = new Promise(function (ok) { setTimeout(ok, 1400); });
+    Promise.all([CFG.API ? iaDia(n) : Promise.resolve(null), espera]).then(function (r) {
+      if (r[0]) { S.emi[n].t = r[0].t; S.emi[n].q = r[0].q; S.emi[n].ia = true; guardar(); sincronizar(true); }
+      texto(b1); setTimeout(cierre, 500);
+    });
+  }
+  function nubes() {
+    var out = "";
+    for (var n = 1; n <= 5; n++) { var e = S.emi && S.emi[n]; if (e && e.r) out += '<div class="nube-nota" style="--r:' + [-2, 1.5, -1, 2, -1.5][n - 1] + 'deg"><small>Día ' + n + "</small><p>" + esc(e.r) + "</p></div>"; }
+    return out ? '<div class="card nubes-card"><div class="res-label">Mis notas mentales</div><div class="nubes">' + out + "</div></div>" : "";
   }
   function analisisEmi() {
     var out = "";
-    for (var n = 1; n <= 5; n++) { var e = S.emi && S.emi[n]; if (e && e.t) out += '<div class="r-item"><div class="r-q">Día ' + n + " · Emi vio esto</div><div class=\"r-a\">" + esc(e.t) + "<br><br><em>" + esc(e.q) + "</em>" + (e.r ? "<br><br><strong>Mi respuesta:</strong> " + esc(e.r) : "") + "</div></div>"; }
+    for (var n = 1; n <= 5; n++) { var e = S.emi && S.emi[n]; if (e && e.t) out += '<div class="r-item"><div class="r-q">Día ' + n + " · Emi vio esto</div><div class=\"r-a\">" + esc(e.t) + "<br><br><em>" + esc(e.q) + "</em>" + (e.r ? "<br><br><strong>Mi nota mental:</strong> " + esc(e.r) : "") + "</div></div>"; }
     return out ? '<div class="card emi-analisis"><div class="res-label">Lo que vio Emi</div>' + out + "</div>" : "";
   }
   function pagResumen() {
@@ -500,7 +544,7 @@
         bandaDemo() + '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + hechos() + "/" + total() + "</span></div>" +
         '<div class="dia-head"><img class="dia-img" src="assets/st-poder.png" alt=""><h1>Mi Wrapped financiero</h1></div>' +
         '<div id="pdf-doc" class="pdf-doc"><div class="pdf-portada"><img src="assets/logo-feminario.png" alt="Feminario"><div class="res-label">Adviento Feminario 2026</div><h1>' + esc(S.nombre) + "</h1></div>" +
-        resumen + analisisEmi() + (cuerpo || '<p class="suave centro">Completa tu primer día y aquí aparece tu resumen.</p>') + '<p class="pdf-pie">Feminario · @feminario.co · Contenido educativo, no asesoría financiera personalizada.</p></div>' +
+        resumen + nubes() + analisisEmi() + (cuerpo || '<p class="suave centro">Completa tu primer día y aquí aparece tu resumen.</p>') + '<p class="pdf-pie">Feminario · @feminario.co · Contenido educativo, no asesoría financiera personalizada.</p></div>' +
         '<div class="acciones"><button class="btn" id="pdf-go" type="button">Descargar mi PDF</button><a class="btn secundario" target="_blank" rel="noopener" href="' + esc(CFG.CLUB_URL) + '">Conocer el Club 365</a></div>' +
         '<p class="mini"><a href="#" id="copia">Guardar copia de mis datos</a> · <a href="#" id="borrar">Borrar mis datos</a></p><div class="aviso" id="pdf-av"></div>';
       var av = raiz.querySelector("#pdf-av");

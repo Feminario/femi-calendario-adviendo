@@ -89,7 +89,7 @@
     if (apo.length) h += "<span>Aporta cada mes</span><p>" + cop(suma(apo)) + "</p>";
     if (v.d4_carta) h += "<span>Carta a su yo de 2027</span><p>" + esc(v.d4_carta) + "</p>";
     if (v.d5_carta) h += "<span>Carta de gratitud (para " + esc(v.d5_para || "una mujer que admira") + ")</span><p>" + esc(v.d5_carta) + "</p>";
-    if (f.insights && f.insights.dias) { var ks = Object.keys(f.insights.dias).sort(); if (ks.length) h += "<span>Emi y sus respuestas</span>" + ks.map(function (k) { var e = f.insights.dias[k]; return '<p><b>Día ' + k + "</b><br>" + esc(e.texto || "") + (e.pregunta ? "<br><i>" + esc(e.pregunta) + "</i>" : "") + (e.respuesta ? "<br><b>Ella respondió:</b> " + esc(e.respuesta) : "") + "</p>"; }).join(""); }
+    if (f.insights && f.insights.dias) { var ks = Object.keys(f.insights.dias).sort(); if (ks.length) h += "<span>Emi y sus respuestas</span>" + ks.map(function (k) { var e = f.insights.dias[k]; return '<p><b>Día ' + k + "</b><br>" + esc(e.texto || "") + (e.pregunta ? "<br><i>" + esc(e.pregunta) + "</i>" : "") + (e.respuesta ? "<br><b>Su nota mental:</b> " + esc(e.respuesta) : "") + "</p>"; }).join(""); }
     return h + "</div></details></article>";
   }
   function csv() {
