@@ -509,7 +509,7 @@
     function texto(el) { el.className = "burbuja"; el.innerHTML = esc(S.emi[n].t) + '<div class="emi-q">' + esc(S.emi[n].q) + "</div>"; }
     function cierre() {
       var box = document.createElement("div"); box.className = "emi-resp";
-      box.innerHTML = '<label for="emi-r">Nota mental <span class="suave">(opcional)</span></label><textarea id="emi-r" placeholder="Una idea, una decisión o lo que quieras recordar de esto.">' + esc(S.emi[n].r) + '</textarea><button class="btn secundario chico" type="button" id="emi-g">Guardar nota mental</button><p class="suave emi-nota">Es tuya: queda en tu Wrapped como una nubecita y la lee el equipo de Feminario para acompañarte.</p>';
+      box.innerHTML = '<label for="emi-r">Nota mental <span class="suave">(opcional)</span></label><textarea id="emi-r" placeholder="Una idea, una decisión o lo que quieras recordar de esto.">' + esc(S.emi[n].r) + '</textarea><button class="btn secundario chico" type="button" id="emi-g">Guardar nota mental</button>';
       chat.appendChild(box);
       box.querySelector("#emi-g").onclick = function () { S.emi[n].r = box.querySelector("#emi-r").value.trim().slice(0, 1000); guardar(); sincronizar(true); this.textContent = "Anotada ✓"; };
     }
