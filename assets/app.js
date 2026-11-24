@@ -1,18 +1,20 @@
-/* Calendario de adviento Feminario — motor compartido (montaña, días y Wrapped).
+/* Calendario de adviento Feminario — motor compartido (camino, días y Wrapped).
    Privacidad: todo lo que escribe cada mujer se guarda SOLO en su dispositivo (localStorage). No se envía a ningún servidor. */
 (function () {
   var CFG = window.CAL_CFG || {};
-  var KEY = "feminario_adviento_2026_v1";
-  var PREVIEW = /[?&]preview=1/.test(location.search) || !!CFG.PREVIEW;
-  var CIMA = /[?&]cima=1/.test(location.search);   // demo: simula que ya terminó los 5 días
+  // DEMO (?demo=1): todas las puertas abiertas y NADA se guarda de verdad: vive solo en esta pestaña (sessionStorage, otra clave) y se borra al cerrarla.
+  var DEMO = /[?&]demo=1/.test(location.search);
+  var KEY = DEMO ? "feminario_adviento_demo" : "feminario_adviento_2026_v2";
+  var ALM = (function () { try { return DEMO ? window.sessionStorage : window.localStorage; } catch (e) { return null; } })();
+  var PREVIEW = DEMO || /[?&]preview=1/.test(location.search) || !!CFG.PREVIEW;
   var S = cargar();
 
   /* ───────── estado ───────── */
   function cargar() {
-    try { var s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v) return s; } catch (e) {}
+    try { var s = JSON.parse(ALM.getItem(KEY)); if (s && s.v) return s; } catch (e) {}
     return { nombre: "", foto: "", v: {}, listo: {} };
   }
-  function guardar() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function guardar() { try { ALM.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
   function setV(k, val) { S.v[k] = val; guardar(); }
   function getV(k) { return S.v[k]; }
 
@@ -25,9 +27,11 @@
   function abierto(n) { if (PREVIEW) return true; var h = new Date(); h.setHours(0, 0, 0, 0); return h >= fechaDia(n); }
   function fechaTxt(n) { return fechaDia(n).toLocaleDateString("es-CO", { day: "numeric", month: "long" }); }
   function total() { return window.DIAS.length; }
-  function hechos() { if (CIMA) return total(); return Object.keys(S.listo).filter(function (k) { return S.listo[k]; }).length; }
+  function hechos() { return Object.keys(S.listo).filter(function (k) { return S.listo[k]; }).length; }
   function confeti(o) { try { window.lanzarConfeti && window.lanzarConfeti(o); } catch (e) {} }
-  function pre() { return PREVIEW && !CFG.PREVIEW ? "?preview=1" : ""; }
+  function pre() { return DEMO ? "?demo=1" : (PREVIEW && !CFG.PREVIEW ? "?preview=1" : ""); }
+  function preY() { var p = pre(); return p ? "&" + p.slice(1) : ""; }
+  function bandaDemo() { return DEMO ? '<div class="demo-banda">Modo demo: puedes llenar todo, pero nada se guarda. Se borra al cerrar la pestaña.</div>' : ""; }
   function urlDe(clave) {
     var map = { calc110: CFG.CALC110_URL, portafolio: "https://feminario.github.io/construye-tu-portafolio/" };
     return map[clave] || clave;
@@ -94,27 +98,75 @@
     });
   }
 
+  /* ───────── balance (mismas opciones que el artefacto de diciembre) ───────── */
+  function itemsDe(id) { var a = getV(id); return Array.isArray(a) && a.length ? a : [{}]; }
+  function sumaV(id, f) { return itemsDe(id).reduce(function (t, x) { return t + (f ? f(x) : toNum(x.v)); }, 0); }
+  function mil(v) { return toNum(v) ? Number(toNum(v)).toLocaleString("es-CO") : ""; }
+  function filaBal(b, x, i, n) {
+    var h = '<div class="fila-bal" data-i="' + i + '">';
+    if (b.tipo === "inversion" || b.tipo === "deuda") { var L = b.tipo === "deuda" ? window.TIPOS_DEUDA : window.TIPOS_INV; h += '<select data-f="tj" aria-label="Tipo"><option value="">' + (b.tipo === "deuda" ? "¿Qué tipo de deuda?" : "¿Qué tipo de inversión?") + "</option>" + L.map(function (t, j) { return '<option value="' + j + '"' + (String(x.tj) === String(j) ? " selected" : "") + ">" + esc(t) + "</option>"; }).join("") + "</select>"; }
+    if (b.tipo === "gasto") h += '<select data-f="t" aria-label="Tipo de gasto"><option value="fijo"' + (x.t !== "var" ? " selected" : "") + '>Gasto fijo (vivienda, servicios, cuotas)</option><option value="var"' + (x.t === "var" ? " selected" : "") + ">Gasto variable (mercado, salidas, antojos)</option></select>";
+    if (b.tipo === "ingreso") h += '<div class="estados"><button type="button" class="estado' + (x.t !== "var" ? " sel" : "") + '" data-set="t" data-val="fijo">Ingreso fijo</button><button type="button" class="estado' + (x.t === "var" ? " sel" : "") + '" data-set="t" data-val="var">Ingreso variable</button></div>' + (x.t === "var" ? '<div class="mini-lbl">Cambia cada mes: pon cuánto te entra en promedio</div>' : "");
+    h += '<input type="text" data-f="n" placeholder="' + esc(b.ph || "") + '" value="' + esc(x.n || "") + '">';
+    h += '<div class="monto-wrap"><span>$</span><input type="text" inputmode="numeric" data-f="v" data-moneda="1" placeholder="' + (b.tipo === "bien" ? "¿Cuánto vale hoy?" : b.tipo === "deuda" ? "¿Cuánto debes?" : x.t === "var" && b.tipo === "ingreso" ? "Promedio al mes" : "Valor") + '" value="' + mil(x.v) + '"></div>';
+    if (b.cuota) h += '<div class="monto-wrap"><span>$</span><input type="text" inputmode="numeric" data-f="cuota" data-moneda="1" placeholder="Cuota al mes" value="' + mil(x.cuota) + '"></div>';
+    if (b.tipo === "bien") {
+      h += '<div class="mini-lbl">¿Ya es tuyo?</div><div class="estados"><button type="button" class="estado' + (x.est === "mio" ? " sel" : "") + '" data-set="est" data-val="mio">Ya es mío</button><button type="button" class="estado' + (x.est === "pagando" ? " sel" : "") + '" data-set="est" data-val="pagando">Lo estoy pagando</button></div>';
+      if (x.est === "pagando") h += '<div class="mini-lbl">¿Cuánto te falta por pagar?</div><div class="monto-wrap"><span>$</span><input type="text" inputmode="numeric" data-f="debo" data-moneda="1" placeholder="Saldo de la deuda" value="' + mil(x.debo) + '"></div>';
+    }
+    return h + (n > 1 ? '<button type="button" class="quitar" data-q>Quitar ' + esc(b.una) + "</button>" : "") + "</div>";
+  }
+  function pintarBal(box, b) {
+    var xs = itemsDe(b.id);
+    box.innerHTML = xs.map(function (x, i) { return filaBal(b, x, i, xs.length); }).join("") + '<button type="button" class="btn secundario chico mas-fila" data-mas>+ Agregar ' + esc(b.una) + "</button>" + (b.calc ? '<div class="resultado" data-calc="' + b.calc + '" hidden></div>' : "");
+  }
+  function enlazarBal(box, b, raiz) {
+    pintarBal(box, b);
+    function xs() { return itemsDe(b.id).map(function (x) { return Object.assign({}, x); }); }
+    box.addEventListener("input", function (e) {
+      var el = e.target, f = el.getAttribute("data-f"), row = el.closest(".fila-bal"); if (!f || !row) return;
+      var cur = xs(), i = +row.getAttribute("data-i"), val = el.value;
+      if (el.getAttribute("data-moneda") === "1") { var d = val.replace(/\D/g, ""); el.value = d ? Number(d).toLocaleString("es-CO") : ""; val = d; }
+      cur[i][f] = val; setV(b.id, cur); recalcular(raiz);
+    });
+    box.addEventListener("change", function (e) {
+      var el = e.target, f = el.getAttribute("data-f"), row = el.closest(".fila-bal"); if (!f || el.tagName !== "SELECT") return;
+      var cur = xs(); cur[+row.getAttribute("data-i")][f] = el.value; setV(b.id, cur); pintarBal(box, b); recalcular(raiz);
+    });
+    box.addEventListener("click", function (e) {
+      var el = e.target, row = el.closest(".fila-bal"), cur = xs();
+      if (el.hasAttribute("data-set")) { cur[+row.getAttribute("data-i")][el.getAttribute("data-set")] = el.getAttribute("data-val"); }
+      else if (el.hasAttribute("data-mas")) cur.push({});
+      else if (el.hasAttribute("data-q")) cur.splice(+row.getAttribute("data-i"), 1);
+      else return;
+      setV(b.id, cur.length ? cur : [{}]); pintarBal(box, b); recalcular(raiz);
+    });
+  }
+
   /* ───────── calculadoras ───────── */
   var R = 0.08 / 12;
   function vf(aporte, anios) { var n = anios * 12; return aporte * ((Math.pow(1 + R, n) - 1) / R); }
   var CALCS = {
     ingresos: function () {
-      var t = suma("d1_ing", "a"); setV("d1_total_ing", t || "");
-      var ah = num("d1_ahorros");
+      var t = sumaV("d1_ing"), vr = sumaV("d1_ing", function (x) { return x.t === "var" ? toNum(x.v) : 0; });
       if (!t) return null;
-      return { html: '<div class="res-label">Tus ingresos al mes</div><div class="res-num">' + cop(t) + "</div>" + (ah ? '<div class="res-desc">Tu ahorro equivale a <strong>' + (Math.round(ah / t * 10) / 10) + " meses</strong> de ingresos.</div>" : "") };
+      return { html: '<div class="res-label">Lo que entra cada mes</div><div class="res-num">' + cop(t) + "</div>" + (vr ? '<div class="res-desc">De eso, <strong>' + cop(vr) + "</strong> es variable (promedio).</div>" : "") };
+    },
+    ahorro: function () {
+      var ah = sumaV("d1_ahorros"), t = sumaV("d1_ing"); if (!ah) return null;
+      return { html: '<div class="res-label">Lo que tienes ahorrado</div><div class="res-num">' + cop(ah) + "</div>" + (t ? '<div class="res-desc">Equivale a <strong>' + (Math.round(ah / t * 10) / 10) + " meses</strong> de lo que te entra.</div>" : "") };
     },
     deudas: function () {
-      var d = suma("d2_deudas", "a"), c = suma("d2_deudas", "b"), ing = num("d1_total_ing"); if (!d && !c) return null;
+      var d = sumaV("d2_deudas"), c = sumaV("d2_deudas", function (x) { return toNum(x.cuota); }), ing = sumaV("d1_ing"); if (!d && !c) return null;
       return { html: '<div class="res-label">Tus deudas</div><div class="res-num">' + cop(d) + '</div><div class="res-desc">Pagas <strong>' + cop(c) + "</strong> al mes en cuotas" + (ing && c ? ", el <strong>" + Math.round(c / ing * 100) + " %</strong> de tus ingresos" : "") + ".</div>" };
     },
     gastos: function () {
-      var g = suma("d2_gastos", "a"), ing = num("d1_total_ing"); if (!g) return null;
-      return { html: '<div class="res-label">Tus gastos al mes</div><div class="res-num">' + cop(g) + "</div>" + (ing ? '<div class="res-desc">Es el <strong>' + Math.round(g / ing * 100) + " %</strong> de tus ingresos.</div>" : "") };
+      var g = sumaV("d2_gastos"), fijo = sumaV("d2_gastos", function (x) { return x.t !== "var" ? toNum(x.v) : 0; }), ing = sumaV("d1_ing"); if (!g) return null;
+      return { html: '<div class="res-label">Lo que gastas al mes</div><div class="res-num">' + cop(g) + '</div><div class="res-desc">Fijos <strong>' + cop(fijo) + "</strong> · variables <strong>" + cop(g - fijo) + "</strong>" + (ing ? ". Es el <strong>" + Math.round(g / ing * 100) + " %</strong> de lo que te entra" : "") + ".</div>" };
     },
     portafolio: function () {
-      var fs = filasDe("d3_activos").filter(function (f) { return toNum(f.a) > 0; }), t = fs.reduce(function (a, f) { return a + toNum(f.a); }, 0); if (!t) return null;
-      var porCat = {}; fs.forEach(function (f) { var k = f.c || "Sin categoría"; porCat[k] = (porCat[k] || 0) + toNum(f.a); });
+      var fs = itemsDe("d3_activos").filter(function (f) { return toNum(f.v) > 0; }), t = fs.reduce(function (a, f) { return a + toNum(f.v); }, 0); if (!t) return null;
+      var porCat = {}; fs.forEach(function (f) { var k = f.tj !== undefined && f.tj !== "" ? window.TIPOS_INV[+f.tj] : "Sin tipo"; porCat[k] = (porCat[k] || 0) + toNum(f.v); });
       var ks = Object.keys(porCat).sort(function (a, b) { return porCat[b] - porCat[a]; }), top = Math.round(porCat[ks[0]] / t * 100);
       return { html: '<div class="res-label">Cómo está repartida tu plata</div>' + ks.map(function (k) { var p = Math.round(porCat[k] / t * 100); return '<div class="barra-fila"><span>' + esc(k) + "</span><b>" + p + ' %</b></div><div class="barra"><div style="width:' + p + '%"></div></div>'; }).join("") + '<div class="res-desc">' + (ks.length < 2 || top > 60 ? "Casi todo está en un solo lugar: repartirlo reduce el riesgo." : "Tienes varias categorías: buen punto de partida para diversificar.") + "</div>" };
     },
@@ -140,6 +192,7 @@
     if (b.t === "reflex") return '<label for="' + b.id + '">' + b.label + '</label><textarea id="' + b.id + '" data-id="' + b.id + '" placeholder="' + esc(b.ph || "") + '">' + esc(getV(b.id) || "") + "</textarea>";
     if (b.t === "nums") return '<div class="bloque"><h3>' + b.titulo + "</h3>" + b.campos.map(campoNum).join("") + (b.calc ? '<div class="resultado" data-calc="' + b.calc + '" hidden></div>' : "") + "</div>";
     if (b.t === "tabla") return '<div class="bloque"><h3>' + b.titulo + "</h3>" + (b.sub ? '<p class="suave centro">' + b.sub + "</p>" : "") + '<div data-tabla="' + b.id + '"></div></div>';
+    if (b.t === "bal") return '<div class="bloque"><h3>' + b.titulo + '</h3><div data-bal="' + b.id + '"></div></div>';
     if (b.t === "embudo") return '<div class="bloque" data-embudo="' + b.id + '"></div>';
     if (b.t === "link") return '<div class="enlace"><a class="btn secundario" target="_blank" rel="noopener" href="' + esc(urlDe(b.url)) + '">' + b.texto + "</a></div>";
     if (b.t === "wa") return '<div class="wa"><b>Mensaje para el grupo de WhatsApp</b><textarea readonly class="wa-txt">' + esc(b.texto) + '</textarea><button type="button" class="btn secundario chico" data-wa-copiar>Copiar</button></div>';
@@ -163,6 +216,7 @@
       });
     });
     raiz.querySelectorAll("[data-tabla]").forEach(function (box) { if (box.__ok) return; box.__ok = 1; enlazarTabla(box, bloqueDe(box.getAttribute("data-tabla"), TODOS()), raiz); });
+    raiz.querySelectorAll("[data-bal]").forEach(function (box) { if (box.__ok) return; box.__ok = 1; enlazarBal(box, bloqueDe(box.getAttribute("data-bal"), TODOS()), raiz); });
     raiz.querySelectorAll("[data-embudo]").forEach(function (box) { if (box.__ok) return; box.__ok = 1; pintarEmbudo(box, bloqueDe(box.getAttribute("data-embudo"), TODOS()), raiz); });
     recalcular(raiz);
   }
@@ -182,7 +236,7 @@
 
   /* ───────── gracias final ───────── */
   function gracias() {
-    return '<div class="gracias"><img src="assets/fundadoras.jpg" alt="Andre y Tina"><h2>Gracias por subir con nosotras</h2><p>Llegaste a la cima de esta primera etapa: ahora sabes dónde estás y hacia dónde vas. Cada paso que diste cuenta, y no vas sola.</p><p class="firma">Andre y Tina</p><a class="btn" href="resumen.html' + pre() + '">Ver mi Wrapped financiero</a></div>';
+    return '<div class="gracias"><img src="assets/fundadoras.jpg" alt="Andre y Tina"><h2>Gracias por recorrer este camino con nosotras</h2><p>Terminaste los cinco días: ahora sabes dónde estás y hacia dónde vas. Cada paso que diste cuenta, y no vas sola.</p><p class="firma">Andre y Tina</p><a class="btn" href="resumen.html' + pre() + '">Ver mi Wrapped financiero</a></div>';
   }
 
   /* ───────── página de un día ───────── */
@@ -194,7 +248,7 @@
     if (!abierto(n)) { raiz.innerHTML = '<div class="card centro"><div class="puerta-cerrada">' + CANDADO + '</div><h2>Esta puerta se abre el ' + fechaTxt(n) + '</h2><a class="btn" href="index.html' + pre() + '">Volver al camino</a></div>'; return; }
     pedirIdentidad(raiz, function () {
       raiz.innerHTML =
-        '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + n + "/" + total() + "</span></div>" +
+        bandaDemo() + '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + n + "/" + total() + "</span></div>" +
         '<div class="dia-head"><img class="dia-img" src="assets/' + d.img + '" alt=""><h1>' + esc(d.titulo) + "</h1></div>" +
         '<div class="card" id="cuerpo">' + d.bloques.map(render).join("") + "</div>" +
         '<div class="acciones"><button class="btn" id="fin" type="button">' + (S.listo[n] ? "Guardar cambios" : "Completar el día " + n) + "</button></div>";
@@ -222,70 +276,76 @@
   }
   function avatar(cls) { return S.foto ? '<img class="' + cls + '" src="' + S.foto + '" alt="">' : '<span class="' + cls + ' sin">' + esc((S.nombre || "?").charAt(0).toUpperCase()) + "</span>"; }
 
-  /* ───────── montaña ───────── */
-  var PUNTOS = [[88, 548], [292, 468], [112, 372], [288, 274], [158, 186]];   // paradas de los días (viewBox 400 × 640)
-  var CIMA_PT = [200, 84], SALIDA = [56, 606];
-  function suave(pts) {
-    var d = "M" + pts[0][0] + " " + pts[0][1];
-    for (var i = 0; i < pts.length - 1; i++) {
-      var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2, t = 0.2;
-      d += " C" + (p1[0] + (p2[0] - p0[0]) * t) + " " + (p1[1] + (p2[1] - p0[1]) * t) + "," + (p2[0] - (p3[0] - p1[0]) * t) + " " + (p2[1] - (p3[1] - p1[1]) * t) + "," + p2[0] + " " + p2[1];
-    }
-    return d;
-  }
+  /* ───────── portada: el camino ───────── */
   function pagPortada() {
     var raiz = document.getElementById("app");
+    if (DEMO) raiz.insertAdjacentHTML("afterbegin", bandaDemo());
     pedirIdentidad(raiz.querySelector("#identidad"), function () {
-      var ok = hechos(), todo = ok >= total();
+      var ok = hechos();
       raiz.querySelector("#identidad").innerHTML =
-        '<div class="hola"><label class="foto-sub" title="Subir mi foto">' + avatar("foto") + '<input type="file" accept="image/*" id="foto-in" hidden><i>+</i></label><div><h2>Hola, ' + esc(S.nombre) + "</h2><p>Llevas <strong>" + ok + " de " + total() + "</strong> días.</p></div></div>";
+        '<div class="hola"><label class="foto-sub" title="Subir mi foto">' + avatar("foto") + '<input type="file" accept="image/*" id="foto-in" hidden><i>+</i></label><div><h2>Hola, ' + esc(S.nombre) + "</h2><p>Llevas <strong>" + ok + " de " + total() + '</strong> días.</p><div class="barra"><div style="width:' + Math.round(ok / total() * 100) + '%"></div></div></div></div>' +
+        (ok >= total() ? gracias() : "");
       raiz.querySelector("#foto-in").onchange = function (e) { if (e.target.files[0]) subirFoto(e.target.files[0], function () { pagPortada(); }); };
-      montana(raiz, todo);
     });
-  }
-  function montana(raiz, todo) {
-    var cont = raiz.querySelector("#puertas"), ok = hechos();
-    var ruta = suave([SALIDA].concat(PUNTOS).concat([CIMA_PT]));
+    var cont = raiz.querySelector("#puertas");
+    var PASO = 118, BANNER = 92, TOP = 20;
+    var items = [], y = TOP;
+    window.DIAS.forEach(function (d, i) {
+      var primero = i === 0 || window.DIAS[i - 1].acto !== d.acto;
+      if (primero) { items.push({ banner: window.ACTOS[d.acto - 1], y: y }); y += BANNER; }
+      items.push({ d: d, y: y + 34 }); y += PASO;
+    });
+    var alto = y + 170;
     var proximo = 0; window.DIAS.forEach(function (d) { if (abierto(d.n) && !S.listo[d.n] && !proximo) proximo = d.n; });
-    var nodos = window.DIAS.map(function (d, i) {
-      var p = PUNTOS[i], abr = abierto(d.n), hecho = CIMA || !!S.listo[d.n], izq = p[0] > 200;
-      var estado = hecho ? "Completado" : (abr ? (d.n === proximo ? "Te toca hoy" : "Abierta") : "Se abre el " + fechaTxt(d.n));
-      var tag = abr ? "a" : "div", href = abr ? ' href="dia.html?d=' + d.n + (PREVIEW && !CFG.PREVIEW ? "&preview=1" : "") + '"' : "";
-      return "<" + tag + href + ' class="paso ' + (abr ? "abierto" : "cerrado") + (hecho ? " hecho" : "") + (izq ? " a-izq" : "") + '" style="left:' + (p[0] / 4) + "%;top:" + (p[1] / 6.4) + '%">' +
-        '<span class="nodo">' + (hecho ? '<svg viewBox="0 0 24 24" class="ok"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<img src="assets/' + d.img + '" alt="">') + (abr ? "" : CANDADO) + '<i class="n">' + d.n + "</i></span>" +
-        '<span class="rotulo"><b>' + esc(d.titulo) + "</b><small>" + estado + "</small></span></" + tag + ">";
-    }).join("");
-    cont.innerHTML =
-      '<div class="montana' + (todo ? " en-cima" : "") + '"><svg viewBox="0 0 400 640" class="mont-svg" aria-hidden="true">' +
-      '<circle class="sol" cx="334" cy="74" r="30" fill="#F59356"/><g class="rayos" stroke="#F7C175" stroke-width="3" stroke-linecap="round"><path d="M334 24v-12M334 124v12M284 74h-12M396 74h-12M300 40l-8-8M368 108l8 8M368 40l8-8M300 108l-8 8"/></g>' +
-      '<g class="nube n1" fill="#fff"><ellipse cx="70" cy="90" rx="34" ry="13"/><ellipse cx="94" cy="80" rx="24" ry="14"/></g><g class="nube n2" fill="#fff"><ellipse cx="300" cy="190" rx="30" ry="11"/><ellipse cx="318" cy="182" rx="20" ry="11"/></g>' +
-      '<path d="M-20 640L96 330 170 440 262 268 420 640Z" fill="#C2CBFF"/>' +
-      '<path d="M16 640L200 70 384 640Z" fill="#7E84AE"/><path d="M200 70L384 640H262L206 330Z" fill="#6E749F"/><path d="M200 70L230 160 214 150 200 176 184 150 168 160Z" fill="#F8F7F2"/>' +
-      '<path d="M0 596c60-14 120-8 200-2s140 8 200-4V640H0Z" fill="#DFF3AF"/>' +
-      '<path id="ruta-base" d="' + ruta + '" fill="none" stroke="#4C4F68" stroke-opacity=".22" stroke-width="11" stroke-linecap="round"/>' +
-      '<path id="ruta" d="' + ruta + '" fill="none" stroke="#F8F7F2" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 11"/>' +
-      '<path id="ruta-avance" d="' + ruta + '" fill="none" stroke="#DFF3AF" stroke-width="6" stroke-linecap="round"/>' +
-      '<g class="bandera"><path d="M200 84V40" stroke="#4C4F68" stroke-width="3" stroke-linecap="round"/><path class="tela" d="M200 40l34 10-34 12Z" fill="#F59356"/></g></svg>' +
-      nodos + '<div class="escalador" id="escalador">' + avatar("esc") + "</div>" +
-      '<a class="cima-link" href="resumen.html' + pre() + '"><b>La cima</b><small>Mi Wrapped financiero</small></a></div>' + (todo ? gracias() : "");
-    // el escalador sube por el sendero hasta su último paso (o hasta la cima)
-    var path = cont.querySelector("#ruta"), climb = cont.querySelector("#escalador"), av = cont.querySelector("#ruta-avance");
-    var L = path.getTotalLength ? path.getTotalLength() : 0;
-    // largo recorrido hasta cada parada
-    var idx = []; (function () { var acum = 0, ps = [SALIDA].concat(PUNTOS).concat([CIMA_PT]); var seg = []; for (var i = 1; i < ps.length; i++) { seg.push(Math.hypot(ps[i][0] - ps[i - 1][0], ps[i][1] - ps[i - 1][1])); } var tot = seg.reduce(function (a, b) { return a + b; }, 0); for (var j = 0; j < seg.length; j++) { acum += seg[j]; idx.push(acum / tot * L); } })();
-    var objetivo = ok >= total() ? L : (ok ? idx[ok - 1] : 0);
-    av.style.strokeDasharray = L; av.style.strokeDashoffset = L;
-    function poner(l) { var pt = path.getPointAtLength(l); climb.style.left = (pt.x / 4) + "%"; climb.style.top = (pt.y / 6.4) + "%"; av.style.strokeDashoffset = L - l; }
-    poner(0);
-    var t0 = null, dur = 2200;
-    function paso(t) { if (t0 === null) t0 = t; var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); poner(objetivo * e); if (k < 1) requestAnimationFrame(paso); else if (todo) { cont.querySelector(".montana").classList.add("llego"); confeti({ n: 220, dur: 3500 }); } }
-    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { poner(objetivo); if (todo) cont.querySelector(".montana").classList.add("llego"); } else setTimeout(function () { requestAnimationFrame(paso); }, 400);
+    var h = '<div class="camino" style="height:' + alto + 'px"><svg class="camino-svg" aria-hidden="true"><defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7E84AE"/><stop offset=".5" stop-color="#CEA2DD"/><stop offset="1" stop-color="#F59356"/></linearGradient></defs><path id="ruta-base" class="ruta-base"/><path id="ruta-avance" class="ruta-avance"/></svg>';
+    items.forEach(function (it, k) {
+      if (it.banner) { var a = it.banner; h += '<div class="acto-banner" style="top:' + it.y + "px;--c:" + a.color + ";--k:" + k + '"><span>Acto ' + a.id + "</span><strong>" + a.nombre + "</strong><em>" + a.sub + "</em></div>"; return; }
+      var d = it.d, ab = abierto(d.n), hecho = !!S.listo[d.n], actual = d.n === proximo;
+      var cls = "paso" + (ab ? " abierto" : " cerrado") + (hecho ? " hecho" : "") + (actual ? " actual" : "");
+      var tag = ab ? "a" : "div", href = ab ? ' href="dia.html?d=' + d.n + preY() + '"' : "";
+      h += "<" + tag + href + ' class="' + cls + '" data-n="' + d.n + '" style="top:' + it.y + "px;--c:" + window.ACTOS[d.acto - 1].color + ";--k:" + k + '">' +
+        '<span class="nodo">' + (hecho ? '<svg viewBox="0 0 24 24" class="ok"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#5E9E6E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<img src="assets/' + d.img + '" alt="">' + (ab ? "" : CANDADO)) + '<i class="n">' + d.n + "</i></span>" +
+        '<span class="rotulo"><b>' + esc(d.titulo) + "</b><small>" + (ab ? (hecho ? "Completado" : (actual ? "Te toca hoy" : "Abierta")) : "Se abre el " + fechaTxt(d.n)) + "</small></span>" +
+        (actual ? '<em class="aqui">¡Aquí estás!</em>' : "") + "</" + tag + ">";
+    });
+    h += '<a class="meta-final" href="resumen.html' + pre() + '" style="top:' + (y + 6) + 'px"><img src="assets/st-poder.png" alt=""><b>Mi Wrapped financiero</b><small>Todo tu camino en una hoja</small></a></div>';
+    cont.innerHTML = h;
+    function trazar() {
+      var cam = cont.querySelector(".camino"), svg = cont.querySelector(".camino-svg"); if (!cam) return;
+      var W = cam.clientWidth, pts = [];
+      cont.querySelectorAll(".paso").forEach(function (el, i) {
+        var n = +el.getAttribute("data-n"), top = parseFloat(el.style.top);
+        var x = W * (0.5 + 0.27 * Math.sin(i * 1.15 + 0.4));
+        el.style.left = (x - 34) + "px"; el.classList.toggle("a-izq", x > W / 2);
+        var rot = el.querySelector(".rotulo"); if (rot) rot.style.maxWidth = Math.max(110, (x > W / 2 ? x - 34 - 12 : W - x - 34 - 12) - 10) + "px";
+        pts.push({ n: n, x: x, y: top + 34 });
+      });
+      svg.setAttribute("width", W); svg.setAttribute("height", alto); svg.setAttribute("viewBox", "0 0 " + W + " " + alto);
+      function curva(ps) { if (!ps.length) return ""; var d = "M" + ps[0].x + " " + (ps[0].y - 70); d += " L" + ps[0].x + " " + ps[0].y; for (var i = 1; i < ps.length; i++) { var a = ps[i - 1], b = ps[i], my = (a.y + b.y) / 2; d += " C" + a.x + " " + my + " " + b.x + " " + my + " " + b.x + " " + b.y; } return d; }
+      var ult = pts.length ? pts[pts.length - 1] : null;
+      var base = cont.querySelector("#ruta-base"); base.setAttribute("d", curva(pts) + (ult ? " L" + ult.x + " " + (ult.y + 70) : ""));
+      var hasta = 0; pts.forEach(function (p, i) { if (S.listo[p.n] || p.n === proximo) hasta = i + 1; });
+      var av = cont.querySelector("#ruta-avance"); av.setAttribute("d", curva(pts.slice(0, hasta)));
+      var L = av.getTotalLength ? av.getTotalLength() : 0; av.style.strokeDasharray = L; av.style.strokeDashoffset = L; av.getBoundingClientRect();
+      cam.classList.add("lista");
+    }
+    trazar(); var rz; window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(trazar, 120); });
+    var aqui = cont.querySelector(".paso.actual");
+    if (aqui && aqui.scrollIntoView && !PREVIEW) setTimeout(function () { aqui.scrollIntoView({ behavior: "smooth", block: "center" }); }, 900);
   }
 
   /* ───────── PDF con todo lo que ha hecho ───────── */
   function filasPDF(titulo, id, b) {
     var fs = filasDe(id).filter(function (f) { return f.c || toNum(f.a) || f.n; }); if (!fs.length) return "";
     return '<div class="r-item"><div class="r-q">' + esc(titulo) + "</div>" + fs.map(function (f) { return '<div class="plan-fila"><span>' + esc([f.c, f.n].filter(Boolean).join(" · ") || "—") + "</span><strong>" + [f.a ? cop(toNum(f.a)) : "", f.b ? (b.cols[2] ? esc(b.cols[2].l) + " " : "") + (isNaN(toNum(f.b)) || /[a-zA-Z]/.test(f.b) ? esc(f.b) : cop(toNum(f.b))) : ""].filter(Boolean).join(" · ") + "</strong></div>"; }).join("") + "</div>";
+  }
+  function balPDF(b) {
+    var xs = itemsDe(b.id).filter(function (x) { return toNum(x.v) || x.n; }); if (!xs.length) return "";
+    return '<div class="r-item"><div class="r-q">' + esc(b.titulo) + "</div>" + xs.map(function (x) {
+      var tipo = x.tj !== undefined && x.tj !== "" ? (b.tipo === "deuda" ? window.TIPOS_DEUDA : window.TIPOS_INV)[+x.tj] : "";
+      var extra = [tipo, b.tipo === "ingreso" ? (x.t === "var" ? "variable, promedio" : "fijo") : "", b.tipo === "gasto" ? (x.t === "var" ? "variable" : "fijo") : "", x.est === "mio" ? "ya es mío" : x.est === "pagando" ? "lo estoy pagando, faltan " + cop(toNum(x.debo)) : "", b.cuota && toNum(x.cuota) ? "cuota " + cop(toNum(x.cuota)) + " al mes" : ""].filter(Boolean).join(" · ");
+      return '<div class="plan-fila"><span>' + esc(x.n || tipo || (b.una.charAt(0).toUpperCase() + b.una.slice(1))) + (extra && x.n ? ' <small class="suave">· ' + esc(extra) + "</small>" : !x.n && extra && extra !== tipo ? ' <small class="suave">· ' + esc(extra.replace(tipo + " · ", "")) + "</small>" : "") + "</span><strong>" + cop(toNum(x.v)) + "</strong></div>";
+    }).join("") + "</div>";
   }
   function seccionDia(d) {
     var partes = [];
@@ -294,6 +354,7 @@
         if (b.t === "reflex") { var v = getV(b.id); if (v && String(v).trim()) partes.push('<div class="r-item"><div class="r-q">' + esc(b.label) + '</div><div class="r-a">' + esc(v).replace(/\n/g, "<br>") + "</div></div>"); }
         else if (b.t === "nums") { var f = b.campos.map(function (c) { var v = getV(c.id); return v ? '<div class="plan-fila"><span>' + c.label + "</span><strong>" + cop(toNum(v)) + "</strong></div>" : ""; }).join(""); if (f) partes.push('<div class="r-item"><div class="r-q">' + esc(b.titulo) + "</div>" + f + "</div>"); }
         else if (b.t === "tabla") { var h = filasPDF(b.titulo, b.id, b); if (h) partes.push(h); }
+        else if (b.t === "bal") { var hb = balPDF(b); if (hb) partes.push(hb); }
         else if (b.t === "embudo") { var v2 = getV(b.id), op = b.ops.filter(function (o) { return o.v === v2; })[0]; if (op) rec(op.bloques); }
       });
     })(d.bloques);
@@ -304,13 +365,13 @@
     var raiz = document.getElementById("app");
     pedirIdentidad(raiz, function () {
       var cuerpo = window.DIAS.map(seccionDia).join("");
-      var ing = num("d1_total_ing"), deu = suma("d2_deudas", "a"), cuo = suma("d2_deudas", "b"), gas = suma("d2_gastos", "a");
+      var ing = sumaV("d1_ing"), deu = sumaV("d2_deudas") + sumaV("d2_bienes", function (x) { return x.est === "pagando" ? toNum(x.debo) : 0; }), cuo = sumaV("d2_deudas", function (x) { return toNum(x.cuota); }), gas = sumaV("d2_gastos"), aho = sumaV("d1_ahorros"), inv = sumaV("d3_activos");
       var resumen =
         '<div class="card plan"><div class="res-label">Mi Wrapped financiero 2026</div><h2>' + esc(S.nombre) + "</h2><div class=\"tot\">" +
-        (ing ? '<div><small>Ingresos al mes</small><b>' + cop(ing) + "</b></div>" : "") + (num("d1_ahorros") ? '<div><small>Ahorrado</small><b>' + cop(num("d1_ahorros")) + "</b></div>" : "") +
+        (ing ? '<div><small>Ingresos al mes</small><b>' + cop(ing) + "</b></div>" : "") + (aho ? '<div><small>Ahorrado</small><b>' + cop(aho) + "</b></div>" : "") + (inv ? '<div><small>Invertido</small><b>' + cop(inv) + "</b></div>" : "") +
         (deu ? '<div><small>Debo</small><b>' + cop(deu) + "</b></div>" : "") + (cuo ? '<div><small>Cuotas al mes</small><b>' + cop(cuo) + "</b></div>" : "") + (gas ? '<div><small>Gastos al mes</small><b>' + cop(gas) + "</b></div>" : "") + "</div></div>";
       raiz.innerHTML =
-        '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + hechos() + "/" + total() + "</span></div>" +
+        bandaDemo() + '<div class="dia-top"><a href="index.html' + pre() + '" class="volver">← Camino</a><img class="dia-logo" src="assets/logo-feminario.png" alt="Feminario"><span class="prog">' + hechos() + "/" + total() + "</span></div>" +
         '<div class="dia-head"><img class="dia-img" src="assets/st-poder.png" alt=""><h1>Mi Wrapped financiero</h1></div>' +
         '<div id="pdf-doc" class="pdf-doc"><div class="pdf-portada"><img src="assets/logo-feminario.png" alt="Feminario"><div class="res-label">Adviento Feminario 2026</div><h1>' + esc(S.nombre) + "</h1></div>" +
         resumen + (cuerpo || '<p class="suave centro">Completa tu primer día y aquí aparece tu resumen.</p>') + '<p class="pdf-pie">Feminario · @feminario.co · Contenido educativo, no asesoría financiera personalizada.</p></div>' +
@@ -318,7 +379,7 @@
         '<p class="mini"><a href="#" id="copia">Guardar copia de mis datos</a> · <a href="#" id="borrar">Borrar mis datos</a></p><div class="aviso" id="pdf-av"></div>';
       var av = raiz.querySelector("#pdf-av");
       raiz.querySelector("#copia").onclick = function (e) { e.preventDefault(); var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(S)], { type: "application/json" })); a.download = "mi-adviento-feminario.json"; a.click(); };
-      raiz.querySelector("#borrar").onclick = function (e) { e.preventDefault(); if (confirm("¿Borrar todo lo que escribiste en este dispositivo?")) { localStorage.removeItem(KEY); location.href = "index.html" + pre(); } };
+      raiz.querySelector("#borrar").onclick = function (e) { e.preventDefault(); if (confirm("¿Borrar todo lo que escribiste en este dispositivo?")) { try { ALM.removeItem(KEY); } catch (e2) {} location.href = "index.html" + pre(); } };
       raiz.querySelector("#pdf-go").onclick = function () {
         var btn = this, doc = raiz.querySelector("#pdf-doc");
         function imprimir() { av.textContent = "En el cuadro que se abre, elige «Guardar como PDF»."; window.print(); }

@@ -18,6 +18,6 @@ Al final cada mujer descarga su **Wrapped financiero 2026** y su PDF con todo el
 - Cada mujer puede guardar una copia de sus datos como archivo y borrarlos desde su Wrapped.
 
 ## Cómo editar
-- Textos y ejercicios: [assets/contenido.js](assets/contenido.js). El video de Instagram del día va en `reel:`.
+- Textos y ejercicios: [assets/contenido.js](assets/contenido.js). Ningún día lleva video. Demo sin guardar nada: abre `index.html?demo=1`.
 - Fechas, enlace del grupo de WhatsApp (`GRUPO_WA`), sesión con Andre y Tina (`SESION`) y enlaces: [assets/config.js](assets/config.js).
 - Probar sin esperar las fechas: agrega `?preview=1` al enlace.
